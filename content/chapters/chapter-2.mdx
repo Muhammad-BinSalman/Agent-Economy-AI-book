@@ -1,0 +1,234 @@
+---
+title: "Chapter 2: Core Concepts"
+description: "Understand the key principles and patterns of AI-native applications"
+order: 2
+readTime: 10
+---
+
+# Chapter 2: Core Concepts
+
+Building AI-native applications requires understanding a new set of concepts and patterns. In this chapter, we'll explore the technology stack that powers these applications and the design patterns that have emerged as best practices in the field.
+
+## Topic 2.1: The AI-Native Stack
+
+The technology stack for AI-native applications differs significantly from traditional web development. Understanding each layer is crucial for building robust, scalable applications.
+
+### Foundation Models
+
+Foundation models are pre-trained AI models that serve as the cognitive engine for your application. They've been trained on vast amounts of data and can understand and generate human-like text, code, images, and more.
+
+#### Language Models (LLMs)
+
+- **GPT-4 (OpenAI)**: Excellent for reasoning, code generation, and complex tasks
+- **Claude (Anthropic)**: Strong on long-context understanding and nuanced reasoning
+- **Gemini (Google)**: Multimodal capabilities with strong performance across tasks
+
+#### Selection Criteria
+
+- **Task Suitability**: Different models excel at different tasks
+- **Cost Considerations**: Token costs vary significantly between models
+- **Latency Requirements**: Some models are faster than others
+- **Context Window**: How much information the model can consider at once
+
+### Orchestration Layer
+
+The orchestration layer is the framework that connects your application to AI models and manages the flow of data and prompts.
+
+#### LangChain
+
+The most popular orchestration framework, LangChain provides:
+
+- **Chains**: Sequences of operations (e.g., read document → summarize → extract key points)
+- **Agents**: Autonomous systems that can use tools and reason about problems
+- **Memory**: Mechanisms for maintaining context across interactions
+- **Prompts**: Templates and management for effective prompt engineering
+
+#### Semantic Kernel
+
+Microsoft's offering that provides:
+
+- **Native integration**: Works seamlessly with Microsoft products
+- **Kernel design**: Planners and skills architecture
+- **Enterprise focus**: Designed for enterprise use cases
+
+#### LlamaIndex
+
+Specializes in data connectivity:
+
+- **Data loaders**: Connect to 100+ data sources
+- **Indexing**: Efficiently prepare data for retrieval
+- **Query engines**: Advanced search and retrieval capabilities
+
+### Vector Databases
+
+Vector databases are the memory of AI-native applications, enabling semantic search and retrieval of relevant context.
+
+#### How They Work
+
+1. Text is converted to embeddings (numbers representing meaning)
+2. Embeddings are stored in a high-dimensional vector space
+3. When searching, similar concepts end up close together in this space
+4. The database finds the closest matches to your query
+
+#### Popular Options
+
+- **Pinecone**: Managed service, excellent for production workloads
+- **Weaviate**: Open-source, with GraphQL API
+- **ChromaDB**: Lightweight, perfect for local development and testing
+
+#### When to Use
+
+- **RAG Applications**: When you need to retrieve relevant documents for context
+- **Semantic Search**: When keyword search isn't sufficient
+- **Recommendation Systems**: Finding similar items based on meaning
+- **Deduplication**: Identifying similar content across large datasets
+
+### Embeddings Models
+
+Embeddings are the bridge between human language and machine understanding. They convert text into numerical vectors that capture semantic meaning.
+
+#### Key Providers
+
+- **OpenAI Embeddings**: High quality, easy to use, cost-effective
+- **Cohere Embeddings**: Strong performance on domain-specific tasks
+- **HuggingFace**: Open-source alternatives for cost optimization
+
+#### Best Practices
+
+- Choose embeddings that match your domain (e.g., code embeddings for programming tasks)
+- Batch embedding requests for efficiency
+- Cache embeddings to avoid re-computation
+- Consider embedding dimension (larger isn't always better)
+
+## Topic 2.2: Design Patterns
+
+AI-native development has introduced several design patterns that have proven effective across multiple applications.
+
+### Pattern 1: Retrieval Augmented Generation (RAG)
+
+RAG combines the power of LLMs with your own data, allowing you to ask questions about your documents and get accurate, contextual answers.
+
+#### How RAG Works
+
+1. **Indexing Phase**: Your documents are split into chunks, converted to embeddings, and stored in a vector database
+2. **Retrieval Phase**: When a user asks a question, the system finds the most relevant document chunks
+3. **Generation Phase**: The retrieved chunks are provided as context to the LLM, which generates an answer
+
+#### Implementation Steps
+
+1. Load your documents (PDF, text, web pages, etc.)
+2. Split documents into manageable chunks (typically 500-1000 tokens)
+3. Create embeddings for each chunk using an embedding model
+4. Store chunks and embeddings in a vector database
+5. At query time, embed the user's question and retrieve relevant chunks
+6. Pass the chunks to the LLM along with the user's question
+
+#### Benefits
+
+- Reduces hallucinations by grounding responses in actual data
+- Keeps your knowledge base up-to-date without retraining the model
+- Provides source attribution so users can verify information
+
+#### When to Use
+
+- Question answering over documents
+- Customer support chatbots
+- Research assistants
+- Knowledge management systems
+
+### Pattern 2: Agent Architecture
+
+Agents are AI systems that can autonomously reason, plan, and use tools to accomplish complex tasks.
+
+#### Key Components
+
+- **Planning**: Breaking down complex goals into subtasks
+- **Memory**: Maintaining context and learning from past actions
+- **Tool Use**: Interacting with external systems and APIs
+- **Reflection**: Evaluating outputs and iterating
+
+#### Example Agent Loop
+
+1. **Observe**: Agent receives user request
+2. **Think**: Agent reasons about what needs to be done
+3. **Act**: Agent uses a tool or performs an action
+4. **Observe**: Agent sees the result
+5. **Think**: Agent reasons about what to do next
+6. **Act**: Loop continues until goal is achieved
+
+#### Best Practices
+
+- Give agents clear objectives and constraints
+- Provide tools that are well-documented and reliable
+- Implement proper error handling and fallback mechanisms
+- Log agent reasoning for debugging and optimization
+
+### Pattern 3: Semantic Memory
+
+Semantic memory systems allow applications to remember and retrieve information based on meaning rather than exact matches.
+
+#### Implementation Approaches
+
+- **Vector Stores**: Using vector databases for semantic search
+- **Summary Indexes**: Creating summaries of long conversations for later retrieval
+- **Hierarchical Storage**: Organizing information at different levels of abstraction
+
+#### Use Cases
+
+- Personal assistants that remember past conversations
+- Learning systems that build on previous knowledge
+- Customer support systems that maintain context across sessions
+
+### Pattern 4: Chain of Thought Prompting
+
+This technique involves asking the model to think through problems step-by-step before producing a final answer.
+
+#### Example Structure
+
+```
+Question: [Your question here]
+
+Let's think step by step:
+1. First, I need to...
+2. Then, I should consider...
+3. After analyzing these factors...
+4. Therefore, the answer is...
+```
+
+#### Benefits
+
+- Improves reasoning for complex problems
+- Reduces errors by showing work
+- Makes the model's thought process transparent
+
+#### When to Use
+
+- Mathematical reasoning
+- Logic puzzles
+- Complex decision-making
+- Multi-step problem solving
+
+### Pattern 5: Few-Shot Learning
+
+Few-shot learning involves providing examples in the prompt to show the model what you want.
+
+#### Template
+
+```
+Example 1: [Input] → [Output]
+Example 2: [Input] → [Output]
+Example 3: [Input] → [Output]
+
+Now, handle this: [New Input]
+```
+
+#### Best Practices
+
+- Use 3-5 diverse examples
+- Make examples representative of the task
+- Include edge cases in examples
+- Clearly separate examples from the actual task
+
+---
+
+By mastering these concepts and patterns, you're building the foundation for creating sophisticated AI-native applications. In the next chapter, we'll put this knowledge into practice with concrete implementation strategies.

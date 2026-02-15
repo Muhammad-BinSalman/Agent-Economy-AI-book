@@ -1,0 +1,271 @@
+---
+title: "Chapter 3: Implementation Strategies"
+description: "Practical approaches to building AI-native apps"
+order: 3
+readTime: 12
+---
+
+# Chapter 3: Implementation Strategies
+
+Now that we understand the core concepts, let's dive into practical implementation strategies. This chapter will walk you through building your first AI-native application, with concrete examples and best practices that you can apply immediately.
+
+## Topic 3.1: Building Your First AI-Native App
+
+Let's build a simple but complete RAG (Retrieval Augmented Generation) application from scratch.
+
+### Step 1: Define Your Use Case
+
+Start with a clear, specific problem:
+
+- **Bad**: "Build an AI chatbot" (too vague)
+- **Good**: "Build a Q&A system for my company's documentation" (specific)
+
+#### Key Questions
+
+- What information do you want to make queryable?
+- Who are your users?
+- What does success look like?
+
+### Step 2: Prepare Your Data
+
+#### Data Collection
+
+- Gather all relevant documents (PDFs, text files, web pages)
+- Clean and normalize the data (remove duplicates, fix formatting)
+- Organize documents logically
+
+#### Data Chunking
+
+Split documents into smaller pieces for processing:
+
+```python
+# Recommended chunk size: 500-1000 tokens
+# Overlap: 100-200 tokens between chunks
+# This ensures no information is lost at boundaries
+```
+
+#### Why Chunking Matters
+
+- LLMs have context window limits
+- Smaller chunks enable more precise retrieval
+- Overlapping chunks help maintain context
+
+### Step 3: Create Embeddings
+
+#### Batch Processing
+
+```python
+# Process in batches for efficiency
+documents = load_documents()
+batch_size = 100  # Adjust based on API limits
+
+for i in range(0, len(documents), batch_size):
+    batch = documents[i:i+batch_size]
+    embeddings = create_embeddings(batch)
+    store_in_vector_db(embeddings, batch)
+```
+
+#### Choosing the Right Model
+
+- **General text**: OpenAI text-embedding-3-small
+- **Code**: OpenAI text-embedding-ada-002
+- **Cost-sensitive**: Sentence Transformers (open source)
+
+### Step 4: Build the Retrieval System
+
+#### Query Processing
+
+```python
+def retrieve_relevant_chunks(query, vector_db, top_k=5):
+    # Embed the query
+    query_embedding = create_embedding(query)
+
+    # Search for similar chunks
+    results = vector_db.similarity_search(
+        query_embedding,
+        top_k=top_k
+    )
+
+    return results
+```
+
+#### Ranking and Filtering
+
+- Score results by similarity
+- Apply relevance thresholds
+- Remove duplicate information
+- Consider recency or popularity if relevant
+
+### Step 5: Construct the Prompt
+
+#### Effective Prompt Structure
+
+```
+You are a helpful assistant answering questions about [topic].
+
+Context information:
+{retrieved_chunks}
+
+Question: {user_question}
+
+Instructions:
+- Answer using only the provided context
+- If the answer isn't in the context, say "I don't know"
+- Cite sources when possible
+
+Answer:
+```
+
+### Step 6: Generate the Response
+
+```python
+def generate_answer(question, context):
+    prompt = construct_prompt(question, context)
+
+    response = llm.complete(
+        prompt,
+        temperature=0.3,  # Lower for more factual responses
+        max_tokens=500
+    )
+
+    return response
+```
+
+#### Testing and Iteration
+
+- Test with different questions
+- Evaluate response quality
+- Adjust retrieval parameters (top_k, thresholds)
+- Refine prompt structure
+- Collect user feedback
+
+## Topic 3.2: Best Practices
+
+When building AI-native applications, following these best practices will save you time and produce better results.
+
+### Prompt Engineering
+
+#### Be Specific and Clear
+
+- ✅ "Summarize the following document in 3 bullet points"
+- ❌ "Summarize this"
+
+#### Provide Context
+
+- ✅ "You are a technical writer summarizing API documentation"
+- ❌ (no context)
+
+#### Use Examples
+
+- ✅ Show the model what you want with examples
+- ❌ Assume the model understands your requirements
+
+#### Set Constraints
+
+- ✅ "Keep responses under 200 words"
+- ❌ Let responses be any length
+
+### Evaluation and Testing
+
+#### Quality Metrics
+
+- **Faithfulness**: Does the response stick to provided context?
+- **Relevance**: Does the response actually answer the question?
+- **Coherence**: Is the response logically structured?
+- **Accuracy**: Is the information factually correct?
+
+#### Testing Strategy
+
+1. Create a test set of representative questions
+2. Manually evaluate initial responses
+3. Build automated evaluation where possible
+4. A/B test different prompts and parameters
+5. Iterate based on metrics
+
+### Cost Optimization
+
+#### Token Usage
+
+- Cache embeddings (they don't change often)
+- Cache responses to common questions
+- Use smaller models when appropriate
+- Set appropriate token limits
+- Compress retrieved context before sending to LLM
+
+#### Model Selection
+
+- Use cheaper models for simple tasks
+- Reserve premium models for complex reasoning
+- Consider fine-tuning for frequently-repeated tasks
+- Monitor costs and set budgets
+
+### Error Handling
+
+#### Common Failure Modes
+
+- **No relevant context found**: Gracefully inform the user
+- **API rate limits**: Implement queues and retries
+- **Model timeouts**: Set appropriate timeouts and fallbacks
+- **Malformed responses**: Validate outputs before using
+
+#### Resilience Patterns
+
+```python
+try:
+    response = call_llm(prompt)
+    if not validate_response(response):
+        response = fallback_strategy()
+except APIError:
+    response = cached_response or default_response
+```
+
+### Security Considerations
+
+#### Prompt Injection
+
+- Sanitize all user inputs before including in prompts
+- Set clear boundaries for what the AI can do
+- Monitor for suspicious patterns
+
+#### Data Privacy
+
+- Don't send sensitive data to external APIs
+- Anonymize data before processing
+- Comply with data protection regulations (GDPR, CCPA)
+
+#### Output Validation
+
+- Never trust AI outputs blindly
+- Validate all actions before executing
+- Review generated code before using
+- Be cautious with URLs and file paths
+
+### Performance Optimization
+
+#### Caching Strategies
+
+```python
+# Semantic caching (same question = cached answer)
+cache_key = hash(query + context_hash)
+if cached(cache_key):
+    return cached_response
+```
+
+#### Async Processing
+
+- Use async operations for parallel independent tasks
+- Stream responses for better UX (token by token)
+- Background processing for non-critical operations
+
+#### Monitoring and Observability
+
+- Track token usage and costs
+- Monitor response times
+- Log errors and edge cases
+- Set up alerts for anomalies
+
+---
+
+Building AI-native applications is an iterative process. Start simple, test thoroughly, and gradually add complexity. The patterns you learn here will apply across all types of AI applications, from chatbots to code assistants to research tools.
+
+In the next chapter, we'll explore advanced patterns for production-ready applications.

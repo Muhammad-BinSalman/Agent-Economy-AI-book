@@ -1,0 +1,287 @@
+---
+title: "Chapter 4: Advanced Patterns"
+description: "Explore sophisticated techniques for production AI-native applications"
+order: 4
+readTime: 15
+---
+
+# Chapter 4: Advanced Patterns
+
+Moving beyond basic applications, this chapter explores sophisticated techniques that separate production-ready AI-native systems from experimental prototypes. We'll cover agent architectures, production considerations, and advanced optimization strategies.
+
+## Topic 4.1: Agent Architectures
+
+Agents represent the frontier of AI-native development—systems that can reason, plan, and act autonomously. Understanding agent architectures is crucial for building complex AI applications.
+
+### Multi-Agent Systems
+
+Complex problems are best solved by specialized agents working together, each with specific capabilities and roles.
+
+#### The Specialist Agent Pattern
+
+Instead of one generalist agent, deploy specialists:
+
+- **Research Agent**: Gathers information from multiple sources
+- **Analyst Agent**: Processes and synthesizes findings
+- **Writer Agent**: Generates coherent documentation
+- **Reviewer Agent**: Critiques and improves outputs
+
+#### Communication Protocols
+
+Agents need standardized ways to share information:
+
+```python
+class AgentMessage:
+    sender: str
+    receiver: str
+    content: str
+    timestamp: datetime
+    context: dict
+```
+
+#### Coordination Strategies
+
+- **Central Orchestrator**: One agent coordinates others
+- **Peer-to-Peer**: Agents communicate directly
+- **Hierarchical**: Manager agents delegate to worker agents
+- **Flat**: All agents are equal, consensus-based decisions
+
+### Tool Use and Function Calling
+
+Modern LLMs can use tools—external APIs and functions—to accomplish tasks beyond text generation.
+
+#### Defining Tools
+
+```python
+tools = [
+    {
+        "name": "search_database",
+        "description": "Search the product database",
+        "parameters": {
+            "query": {"type": "string", "description": "Search query"},
+            "limit": {"type": "integer", "default": 10}
+        }
+    },
+    {
+        "name": "send_email",
+        "description": "Send an email to a user",
+        "parameters": {
+            "to": {"type": "string"},
+            "subject": {"type": "string"},
+            "body": {"type": "string"}
+        }
+    }
+]
+```
+
+#### Tool Selection Logic
+
+Agents must decide which tools to use based on the task:
+
+1. Analyze the request
+2. Identify required tools
+3. Execute tools in correct order
+4. Combine tool outputs
+5. Handle errors gracefully
+
+#### Best Practices
+
+- Keep tools simple and focused
+- Document tool behavior thoroughly
+- Implement proper error handling
+- Validate tool outputs before using
+- Log all tool usage for debugging
+
+### Memory and Context Management
+
+Agents need memory to maintain coherent conversations and learn from past interactions.
+
+#### Types of Memory
+
+1. **Short-term Memory**: Current conversation context
+2. **Long-term Memory**: Persistent information across sessions
+3. **Semantic Memory**: Meaningful insights extracted over time
+4. **Episodic Memory**: Specific past experiences
+
+#### Implementing Memory
+
+```python
+class AgentMemory:
+    def add_memory(self, content, metadata):
+        """Store a new memory"""
+        embedding = create_embedding(content)
+        vector_db.store(embedding, {
+            "content": content,
+            "timestamp": datetime.now(),
+            **metadata
+        })
+
+    def retrieve_memories(self, query, limit=5):
+        """Retrieve relevant memories"""
+        return vector_db.similarity_search(query, k=limit)
+```
+
+#### Memory Optimization
+
+- Summarize old conversations to save space
+- Forgetting mechanism (remove irrelevant old memories)
+- Importance weighting (prioritize certain types of information)
+- Hierarchical storage (hot/warm/cold data)
+
+## Topic 4.2: Production Considerations
+
+Moving from prototype to production requires attention to reliability, scalability, and maintainability.
+
+### Performance Optimization
+
+#### Caching Strategies
+
+**1. Response Caching**: Cache LLM responses for identical queries
+
+```python
+@cache(ttl=3600)  # Cache for 1 hour
+def generate_response(query):
+    return llm.complete(query)
+```
+
+**2. Embedding Caching**: Embeddings rarely change, cache them aggressively
+
+```python
+@cache(ttl=86400)  # Cache for 24 hours
+def get_embedding(text):
+    return embedding_model.encode(text)
+```
+
+**3. Semantic Caching**: Group similar queries
+
+```python
+def semantic_cache_key(query):
+    # Find similar cached queries
+    similar = find_similar_queries(query, threshold=0.95)
+    if similar:
+        return similar[0]["response"]
+    return None
+```
+
+#### Batch Processing
+
+```python
+# Process multiple requests together
+queries = ["query1", "query2", "query3"]
+embeddings = embedding_model.encode_batch(queries)  # More efficient
+```
+
+#### Streaming Responses
+
+```python
+def stream_response(prompt):
+    for chunk in llm.stream(prompt):
+        yield chunk  # Send to user immediately
+```
+
+### Reliability & Resilience
+
+#### Rate Limiting
+
+```python
+from tenacity import retry, stop_after_attempt, wait_exponential
+
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=10))
+def call_llm_with_retry(prompt):
+    return llm.complete(prompt)
+```
+
+#### Fallback Mechanisms
+
+```python
+def robust_llm_call(prompt):
+    try:
+        return premium_model(prompt)
+    except APIError:
+        return standard_model(prompt)
+    except TimeoutError:
+        return cached_response(prompt) or fallback_response
+```
+
+#### Circuit Breakers
+
+```python
+class CircuitBreaker:
+    def __init__(self, failure_threshold=5, timeout_seconds=60):
+        self.failure_count = 0
+        self.last_failure_time = None
+        self.state = "closed"  # closed, open, half-open
+
+    def call(self, func):
+        if self.state == "open":
+            return func()
+        elif self.state == "half-open":
+            self.state = "closed"
+            return func()
+        else:
+            raise CircuitBreakerOpenException()
+```
+
+### Security Best Practices
+
+#### Prompt Injection Prevention
+
+```python
+def sanitize_user_input(user_input):
+    # Remove potential injection attempts
+    dangerous_patterns = ["ignore", "override", "admin"]
+    for pattern in dangerous_patterns:
+        if pattern in user_input.lower():
+            raise SecurityException(f"Invalid input: {pattern}")
+    return user_input
+```
+
+#### Output Validation
+
+```python
+def validate_code_output(code):
+    # Check for malicious patterns
+    dangerous = ["exec(", "eval(", "__import__", "os.system"]
+    if any(d in code for d in dangerous):
+        raise SecurityException("Potentially malicious code")
+    return code
+```
+
+#### Data Privacy
+
+- Implement data retention policies
+- Anonymize PII before sending to LLMs
+- Use compliant AI services (GDPR, SOC2)
+- Implement data access logging
+
+### Monitoring and Observability
+
+#### Key Metrics to Track
+
+- **Latency**: Response times (p50, p95, p99)
+- **Cost**: Token usage per request, daily costs
+- **Quality**: Response relevance, user satisfaction
+- **Errors**: Failure rates, error types
+- **Usage**: Requests per user, popular features
+
+#### Dashboard Implementation
+
+```python
+metrics = {
+    "requests_total": counter(),
+    "request_duration_seconds": histogram(),
+    "tokens_used": gauge(),
+    "cost_usd": gauge(),
+}
+```
+
+#### Alerting
+
+- Set up alerts for high error rates
+- Monitor costs and set budget limits
+- Track unusual usage patterns
+- Alert on performance degradation
+
+---
+
+These advanced patterns will help you build robust, production-ready AI-native applications. In the final chapter, we'll look ahead to the future of this exciting field.
