@@ -1,7 +1,10 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { Menu, X, BookOpen, ChevronRight } from "lucide-react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 interface Chapter {
   id: string;
@@ -12,99 +15,158 @@ interface Chapter {
 interface ChapterNavigationProps {
   chapters: Chapter[];
   activeChapter: string | null;
-  onChapterClick: (chapterId: string) => void;
   className?: string;
-  variant?: "sidebar" | "dropdown";
+  variant?: "sidebar" | "dropdown" | "mobile";
 }
 
 export function ChapterNavigation({
   chapters,
   activeChapter,
-  onChapterClick,
   className,
   variant = "sidebar",
 }: ChapterNavigationProps) {
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [expandedChapter, setExpandedChapter] = useState<string | null>(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState<string | null>(activeChapter);
 
-  // Toggle chapter expansion
-  const toggleChapter = (chapterId: string) => () => {
-    if (expandedChapter === chapterId) {
-      // If clicking the same chapter, collapse it
-      setExpandedChapter(null);
-      setIsCollapsed(false);
-    } else {
-      // Expand the clicked chapter
-      setExpandedChapter(chapterId);
-      setIsCollapsed(true);
-      // Also navigate to the chapter
-      onChapterClick(chapterId);
-    }
-  };
+  useEffect(() => {
+    setActiveSection(activeChapter);
+  }, [activeChapter]);
 
-  const toggleAll = () => {
-    if (isCollapsed) {
-      setExpandedChapter(null);
-      setIsCollapsed(false);
-    } else {
-      setIsCollapsed(true);
-      // Show only active chapter if there is one, otherwise show first
-      setExpandedChapter(activeChapter || chapters[0].id);
-    }
-  };
+  // Mobile menu
+  if (variant === "mobile") {
+    return (
+      <>
+        <button
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          className="lg:hidden fixed bottom-6 right-6 z-50 p-4 bg-primary text-primary-foreground rounded-full shadow-lg hover:scale-110 transition-transform"
+          aria-label="Toggle chapter menu"
+        >
+          {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
 
-  // Display mode: collapsed (only selected) or expanded (all chapters)
-  const chaptersToShow = isCollapsed && expandedChapter
-    ? chapters.filter((ch) => ch.id === expandedChapter)
-    : chapters;
+        {isMobileMenuOpen && (
+          <div className="fixed inset-0 z-40 lg:hidden">
+            <div
+              className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+              onClick={() => setIsMobileMenuOpen(false)}
+            />
+            <nav className="absolute right-0 top-0 bottom-0 w-80 bg-background border-l shadow-xl overflow-y-auto">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-2">
+                    <BookOpen className="w-5 h-5 text-primary" />
+                    <h3 className="font-semibold text-lg">Chapters</h3>
+                  </div>
+                  <button
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="p-2 hover:bg-accent rounded-md transition-colors"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+                <ul className="space-y-1">
+                  {chapters.map((chapter) => (
+                    <li key={chapter.id}>
+                      <Link
+                        href={`/book/${chapter.id}`}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className={cn(
+                          "w-full text-left px-4 py-3 rounded-lg block",
+                          "hover:bg-accent hover:text-accent-foreground",
+                          "transition-all duration-200",
+                          "flex items-center gap-3",
+                          "text-sm",
+                          activeSection === chapter.id
+                            ? "bg-primary/10 text-primary font-medium border-l-2 border-primary"
+                            : "text-muted-foreground"
+                        )}
+                      >
+                        {chapter.id !== "preface" && (
+                          <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-md bg-muted text-xs font-medium">
+                            {chapter.order}
+                          </span>
+                        )}
+                        {chapter.id === "preface" && (
+                          <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center">
+                            <BookOpen className="w-4 h-4" />
+                          </span>
+                        )}
+                        <span className="flex-1">
+                          {chapter.title.replace(/^Chapter \d+: /, "")}
+                        </span>
+                        {activeSection === chapter.id && (
+                          <ChevronRight className="w-4 h-4" />
+                        )}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </nav>
+          </div>
+        )}
+      </>
+    );
+  }
 
+  // Desktop sidebar
   return (
     <nav
       className={cn(
-        "sticky top-20",
-        "glass",
-        "glass-dark",
-        "rounded-lg p-4",
-        variant === "sidebar" && "w-64",
+        "sticky top-24",
+        "border rounded-xl bg-card/50 backdrop-blur-sm",
+        "overflow-hidden",
+        "max-h-[calc(100vh-8rem)]", // Max height with viewport consideration
+        variant === "sidebar" && "w-72",
         className
       )}
       aria-label="Chapter navigation"
     >
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="font-semibold">
-          {isCollapsed && expandedChapter
-            ? `Chapter ${chapters.find((c) => c.id === expandedChapter)?.order}`
-            : "Chapters"}
-        </h3>
-        <button
-          onClick={toggleAll}
-          className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-          aria-label={isCollapsed ? "Show all chapters" : "Show selected chapter only"}
-        >
-          {isCollapsed ? "▸" : "▴"}
-        </button>
+      <div className="border-b bg-muted/30 px-6 py-4">
+        <div className="flex items-center gap-2">
+          <BookOpen className="w-5 h-5 text-primary" />
+          <h3 className="font-semibold text-lg">Table of Contents</h3>
+        </div>
       </div>
-      <ul className="space-y-2">
-        {chaptersToShow.map((chapter) => (
-          <li key={chapter.id}>
-            <button
-              onClick={toggleChapter(chapter.id)}
-              className={cn(
-                "w-full text-left px-3 py-2 rounded",
-                "hover:bg-accent hover:text-accent-foreground",
-                "transition-all",
-                "text-sm",
-                "transition-all",
-                activeChapter === chapter.id && "bg-accent font-semibold"
-              )}
-              aria-current={activeChapter === chapter.id ? "true" : undefined}
-            >
-              {chapter.order}.{" "}
-              {chapter.title.replace(/^Chapter \d+: /, "")}
-            </button>
-          </li>
-        ))}
-      </ul>
+
+      <div className="p-4 overflow-y-auto max-h-[calc(100vh-12rem)]">
+        <ul className="space-y-1">
+          {chapters.map((chapter) => (
+            <li key={chapter.id}>
+              <Link
+                href={`/book/${chapter.id}`}
+                className={cn(
+                  "w-full text-left px-4 py-3 rounded-lg block",
+                  "hover:bg-accent hover:text-accent-foreground",
+                  "transition-all duration-200",
+                  "flex items-center gap-3",
+                  "text-sm group",
+                  activeSection === chapter.id
+                    ? "bg-primary/10 text-primary font-medium border-l-2 border-primary"
+                    : "text-muted-foreground"
+                )}
+              >
+                {chapter.id !== "preface" && (
+                  <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-md bg-muted text-xs font-medium group-hover:bg-primary/20 transition-colors">
+                    {chapter.order}
+                  </span>
+                )}
+                {chapter.id === "preface" && (
+                  <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center">
+                    <BookOpen className="w-4 h-4" />
+                  </span>
+                )}
+                <span className="flex-1">
+                  {chapter.title.replace(/^Chapter \d+: /, "")}
+                </span>
+                {activeSection === chapter.id && (
+                  <ChevronRight className="w-4 h-4" />
+                )}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </div>
     </nav>
   );
 }

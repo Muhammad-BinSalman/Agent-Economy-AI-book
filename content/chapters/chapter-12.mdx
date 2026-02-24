@@ -1,0 +1,1018 @@
+---
+title: "Chapter 12: Full-Stack AI Application Blueprint"
+description: "End-to-end architecture for production AI applications"
+order: 12
+readTime: 19
+---
+
+# Chapter 12: Full-Stack AI Application Blueprint
+
+Building a production AI application requires integrating multiple components: frontend for user interaction, backend APIs, retrieval systems for knowledge access, evaluation harnesses for quality assurance, observability for monitoring, and security for protection. This chapter provides a complete blueprint for integrating all these components into a cohesive system.
+
+## Topic 12.1: System Architecture Overview
+
+### Component Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         Frontend Layer                          │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐         │
+│  │   React/     │  │   Streaming  │  │   Error      │         │
+│  │   Next.js    │  │   Responses  │  │   Handling   │         │
+│  └──────────────┘  └──────────────┘  └──────────────┘         │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      API Gateway Layer                          │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐         │
+│  │    Rate      │  │   AuthN/     │  │   Request    │         │
+│  │   Limiting   │  │   AuthZ      │  │  Validation  │         │
+│  └──────────────┘  └──────────────┘  └──────────────┘         │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                       Backend Services                          │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐         │
+│  │  Question    │  │  Document    │  │  Escalation  │         │
+│  │  Service     │  │  Service     │  │  Service     │         │
+│  └──────────────┘  └──────────────┘  └──────────────┘         │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                         AI Layer                                 │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐         │
+│  │  Retrieval   │  │   Agent      │  │  Answer      │         │
+│  │  Service     │  │  Orchestrator│  │  Generator   │         │
+│  └──────────────┘  └──────────────┘  └──────────────┘         │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      Data & Knowledge Layer                      │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐         │
+│  │   Vector     │  │  PostgreSQL  │  │   Cache      │         │
+│  │    DB        │  │   Database   │  │   (Redis)    │         │
+│  └──────────────┘  └──────────────┘  └──────────────┘         │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    Observability Layer                           │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐         │
+│  │   Metrics    │  │    Logs      │  │   Traces     │         │
+│  │  (Prometheus)│  │  (ELK Stack) │  │ (Jaeger/OTel)│         │
+│  └──────────────┘  └──────────────┘  └──────────────┘         │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## Topic 12.2: Frontend Implementation
+
+### Streaming Responses with React
+
+```typescript
+// components/QuestionForm.tsx
+import { useState, useRef } from 'react';
+import { askQuestion } from '@/lib/api';
+
+export function QuestionForm() {
+  const [question, setQuestion] = useState('');
+  const [answer, setAnswer] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!question.trim()) return;
+
+    setIsLoading(true);
+    setError(null);
+    setAnswer('');
+
+    // Cancel any previous request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    abortControllerRef.current = new AbortController();
+
+    try {
+      // Stream the response
+      const stream = await askQuestion(question, {
+        signal: abortControllerRef.current.signal
+      });
+
+      const reader = stream.getReader();
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = JSON.parse(line.slice(6));
+            if (data.type === 'token') {
+              setAnswer(prev => prev + data.content);
+            } else if (data.type === 'metadata') {
+              console.log('Metadata:', data);
+            } else if (data.type === 'error') {
+              setError(data.message);
+            }
+          }
+        }
+      }
+    } catch (err) {
+      if (err instanceof Error) {
+        if (err.name === 'AbortError') {
+          setError('Request cancelled');
+        } else {
+          setError(err.message);
+        }
+      }
+    } finally {
+      setIsLoading(false);
+      abortControllerRef.current = null;
+    }
+  };
+
+  const handleCancel = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto p-6">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label htmlFor="question" className="block text-sm font-medium">
+            Ask a question
+          </label>
+          <textarea
+            id="question"
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            disabled={isLoading}
+            rows={3}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+            placeholder="How can I help you today?"
+          />
+        </div>
+
+        <div className="flex gap-2">
+          <button
+            type="submit"
+            disabled={isLoading || !question.trim()}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+          >
+            {isLoading ? 'Thinking...' : 'Ask'}
+          </button>
+
+          {isLoading && (
+            <button
+              type="button"
+              onClick={handleCancel}
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+            >
+              Cancel
+            </button>
+          )}
+        </div>
+      </form>
+
+      {error && (
+        <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-md">
+          <p className="text-red-800">{error}</p>
+        </div>
+      )}
+
+      {answer && (
+        <div className="mt-6 p-4 bg-gray-50 rounded-md">
+          <h3 className="text-lg font-medium mb-2">Answer</h3>
+          <div className="prose prose-sm">
+            {answer.split('\n').map((paragraph, i) => (
+              <p key={i}>{paragraph}</p>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+### Error Handling and Retry Logic
+
+```typescript
+// lib/api.ts
+export class APIError extends Error {
+  constructor(
+    message: string,
+    public statusCode: number,
+    public retryable: boolean = false
+  ) {
+    super(message);
+    this.name = 'APIError';
+  }
+}
+
+export async function askQuestion(
+  question: string,
+  options?: { signal?: AbortSignal; retries?: number }
+): Promise<ReadableStream> {
+  const { signal, retries = 3 } = options || {};
+
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      const response = await fetch('/api/v1/questions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ question }),
+        signal,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+
+        if (response.status >= 500 && attempt < retries - 1) {
+          // Retry on server errors
+          await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+          continue;
+        }
+
+        throw new APIError(
+          error.message || 'Request failed',
+          response.status,
+          response.status >= 500
+        );
+      }
+
+      return response.body!;
+
+    } catch (error) {
+      if (error instanceof APIError) {
+        throw error;
+      }
+
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw error;
+      }
+
+      if (attempt < retries - 1) {
+        await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+        continue;
+      }
+
+      throw new APIError(
+        'Network error',
+        0,
+        true
+      );
+    }
+  }
+
+  throw new APIError('Max retries exceeded', 0, false);
+}
+```
+
+## Topic 12.3: Backend Implementation
+
+### FastAPI Backend Structure
+
+```python
+# main.py
+from fastapi import FastAPI, HTTPException, Request, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import StreamingResponse
+import uvicorn
+
+from app.api.v1 import questions, health
+from app.core.config import settings
+from app.core.middleware import (
+    RateLimitMiddleware,
+    AuthMiddleware,
+    RequestLoggingMiddleware
+)
+from app.core.errors import add_exception_handlers
+
+app = FastAPI(
+    title="AI Customer Support API",
+    description="AI-powered customer support for documentation questions",
+    version="1.0.0",
+    docs_url="/docs" if settings.DEBUG else None,
+    redoc_url="/redoc" if settings.DEBUG else None,
+)
+
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Gzip compression
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+# Custom middleware
+app.add_middleware(RateLimitMiddleware)
+app.add_middleware(AuthMiddleware)
+app.add_middleware(RequestLoggingMiddleware)
+
+# Exception handlers
+add_exception_handlers(app)
+
+# Routers
+app.include_router(health.router, prefix="/api/v1/health", tags=["health"])
+app.include_router(questions.router, prefix="/api/v1/questions", tags=["questions"])
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize application on startup"""
+    # Initialize database connections
+    await init_db()
+
+    # Initialize vector database
+    await init_vector_db()
+
+    # Initialize LLM client
+    await init_llm()
+
+    # Run health checks
+    await run_startup_checks()
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Clean up on shutdown"""
+    await close_db()
+    await close_vector_db()
+    await close_llm()
+
+if __name__ == "__main__":
+    uvicorn.run(
+        "main:app",
+        host=settings.HOST,
+        port=settings.PORT,
+        reload=settings.DEBUG,
+        workers=settings.WORKERS,
+    )
+```
+
+### Question Service Implementation
+
+```python
+# app/services/question_service.py
+from typing import AsyncIterator
+import json
+
+from app.core.exceptions import ValidationException, EscalationRequiredException
+from app.services.retrieval_service import RetrievalService
+from app.services.agent_service import AgentService
+from app.services.escalation_service import EscalationService
+from app.models.question import QuestionRequest, QuestionResponse
+from app.core.observability import trace, track_metrics
+
+class QuestionService:
+    def __init__(
+        self,
+        retrieval_service: RetrievalService,
+        agent_service: AgentService,
+        escalation_service: EscalationService,
+    ):
+        self.retrieval = retrieval_service
+        self.agent = agent_service
+        self.escalation = escalation_service
+
+    @trace("question_service")
+    @track_metrics("question")
+    async def process_question(
+        self,
+        request: QuestionRequest,
+        user_id: str
+    ) -> QuestionResponse:
+        """Process a customer question"""
+
+        # Step 1: Retrieve relevant documentation
+        docs = await self.retrieval.search(
+            query=request.question,
+            top_k=5,
+            filters={"category": "public"}
+        )
+
+        if not docs:
+            # No relevant docs found - escalate
+            return await self._escalate(
+                request=request,
+                user_id=user_id,
+                reason="no_relevant_docs"
+            )
+
+        # Step 2: Generate answer using agent
+        try:
+            answer = await self.agent.generate_answer(
+                question=request.question,
+                context=request.context,
+                documents=docs,
+                user_id=user_id
+            )
+
+            # Step 3: Check if escalation needed
+            if answer.confidence < 0.7:
+                return await self._escalate(
+                    request=request,
+                    user_id=user_id,
+                    reason="low_confidence",
+                    ai_answer=answer
+                )
+
+            # Step 4: Return successful response
+            return QuestionResponse(
+                answer=answer.text,
+                article_id=docs[0].id if docs else None,
+                confidence_score=answer.confidence,
+                sources=[
+                    {
+                        "article_id": doc.id,
+                        "title": doc.title,
+                        "relevant_section": doc.relevant_section
+                    }
+                    for doc in docs[:3]
+                ],
+                escalated=False,
+                suggested_questions=answer.suggested_questions
+            )
+
+        except Exception as e:
+            # Unexpected error - escalate
+            return await self._escalate(
+                request=request,
+                user_id=user_id,
+                reason="processing_error",
+                error=str(e)
+            )
+
+    async def _escalate(
+        self,
+        request: QuestionRequest,
+        user_id: str,
+        reason: str,
+        ai_answer: Optional[Answer] = None,
+        error: Optional[str] = None
+    ) -> QuestionResponse:
+        """Escalate question to human support"""
+
+        ticket = await self.escalation.create_ticket(
+            question=request.question,
+            context=request.context,
+            user_id=user_id,
+            reason=reason,
+            ai_answer=ai_answer.text if ai_answer else None,
+            error=error
+        )
+
+        return QuestionResponse(
+            answer="I've escalated your question to our support team. "
+                   f"You can expect a response within {ticket.estimated_response_time}.",
+            article_id=None,
+            confidence_score=0.0,
+            sources=[],
+            escalated=True,
+            escalation_details={
+                "ticket_id": ticket.id,
+                "estimated_response_time": ticket.estimated_response_time
+            }
+        )
+
+    async def stream_question(
+        self,
+        request: QuestionRequest,
+        user_id: str
+    ) -> AsyncIterator[str]:
+        """Stream question response"""
+
+        try:
+            # Process question
+            response = await self.process_question(request, user_id)
+
+            # Stream response
+            yield self._format_sse("metadata", {
+                "confidence": response.confidence_score,
+                "escalated": response.escalated
+            })
+
+            for token in response.answer:
+                yield self._format_sse("token", {"content": token})
+
+            yield self._format_sse("done", {})
+
+        except Exception as e:
+            yield self._format_sse("error", {"message": str(e)})
+
+    def _format_sse(self, event_type: str, data: dict) -> str:
+        """Format Server-Sent Event"""
+        return f"data: {json.dumps({'type': event_type, **data})}\n\n"
+```
+
+## Topic 12.4: Retrieval System
+
+### Vector Database Implementation
+
+```python
+# app/services/retrieval_service.py
+from typing import List, Optional
+import numpy as np
+
+from app.core.vector_db import VectorDatabase
+from app.models.document import Document
+from app.core.observability import trace, track_metrics
+
+class RetrievalService:
+    def __init__(self, vector_db: VectorDatabase):
+        self.vector_db = vector_db
+
+    @trace("retrieval_search")
+    @track_metrics("retrieval")
+    async def search(
+        self,
+        query: str,
+        top_k: int = 5,
+        filters: Optional[dict] = None
+    ) -> List[Document]:
+        """Search for relevant documents"""
+
+        # Generate query embedding
+        query_embedding = await self._embed_query(query)
+
+        # Search vector database
+        results = await self.vector_db.search(
+            query_vector=query_embedding,
+            top_k=top_k,
+            filters=filters
+        )
+
+        # Re-rank results
+        reranked = await self._rerank(query, results)
+
+        # Extract relevant sections
+        for doc in reranked:
+            doc.relevant_section = await self._extract_relevant_section(
+                query, doc
+            )
+
+        return reranked
+
+    async def _embed_query(self, query: str) -> np.ndarray:
+        """Generate embedding for query"""
+        # Use embedding model
+        embedding = await self.embedding_model.embed(query)
+        return np.array(embedding)
+
+    async def _rerank(self, query: str, documents: List[Document]) -> List[Document]:
+        """Re-rank documents based on query relevance"""
+
+        # Calculate relevance scores
+        for doc in documents:
+            # Semantic similarity
+            semantic_score = doc.similarity_score
+
+            # Keyword matching
+            keyword_score = self._calculate_keyword_score(query, doc)
+
+            # Freshness (prefer recent documents)
+            freshness_score = self._calculate_freshness_score(doc)
+
+            # Combined score
+            doc.rerank_score = (
+                0.7 * semantic_score +
+                0.2 * keyword_score +
+                0.1 * freshness_score
+            )
+
+        # Sort by rerank score
+        return sorted(documents, key=lambda d: d.rerank_score, reverse=True)
+
+    def _calculate_keyword_score(self, query: str, doc: Document) -> float:
+        """Calculate keyword matching score"""
+        query_words = set(query.lower().split())
+        doc_words = set(doc.content.lower().split())
+
+        overlap = len(query_words & doc_words)
+        return overlap / len(query_words) if query_words else 0.0
+
+    def _calculate_freshness_score(self, doc: Document) -> float:
+        """Calculate freshness score"""
+        days_old = (datetime.now() - doc.last_updated).days
+        # Decay over 90 days
+        return max(0.0, 1.0 - days_old / 90)
+
+    async def _extract_relevant_section(self, query: str, doc: Document) -> str:
+        """Extract most relevant section from document"""
+
+        # Split document into sentences
+        sentences = doc.content.split('.')
+
+        # Score each sentence
+        scored_sentences = []
+        for sentence in sentences:
+            score = self._sentence_relevance_score(query, sentence)
+            scored_sentences.append((sentence, score))
+
+        # Sort by score and return top sentences
+        scored_sentences.sort(key=lambda x: x[1], reverse=True)
+
+        # Return up to 3 most relevant sentences
+        relevant = [s[0] for s in scored_sentences[:3]]
+        return '. '.join(relevant)
+
+    def _sentence_relevance_score(self, query: str, sentence: str) -> float:
+        """Calculate relevance score for a sentence"""
+        query_words = set(query.lower().split())
+        sentence_words = set(sentence.lower().split())
+
+        overlap = len(query_words & sentence_words)
+        return overlap / len(query_words) if query_words else 0.0
+```
+
+## Topic 12.5: Evaluation Harness
+
+### Automated Test Framework
+
+```python
+# app/evaluation/test_harness.py
+from typing import List, Dict, Any
+import asyncio
+
+from app.services.question_service import QuestionService
+from app.models.evaluation import TestCase, TestResult, EvaluationReport
+from app.core.observability import trace
+
+class EvaluationHarness:
+    def __init__(self, question_service: QuestionService):
+        self.question_service = question_service
+
+    @trace("evaluation_run")
+    async def run_evaluation(
+        self,
+        test_cases: List[TestCase],
+        parallel: bool = True
+    ) -> EvaluationReport:
+        """Run evaluation on test cases"""
+
+        if parallel:
+            results = await self._run_parallel(test_cases)
+        else:
+            results = await self._run_sequential(test_cases)
+
+        return self._generate_report(results)
+
+    async def _run_parallel(
+        self,
+        test_cases: List[TestCase]
+    ) -> List[TestResult]:
+        """Run test cases in parallel"""
+        tasks = [
+            self._run_single_test_case(test_case)
+            for test_case in test_cases
+        ]
+        return await asyncio.gather(*tasks)
+
+    async def _run_sequential(
+        self,
+        test_cases: List[TestCase]
+    ) -> List[TestResult]:
+        """Run test cases sequentially"""
+        results = []
+        for test_case in test_cases:
+            result = await self._run_single_test_case(test_case)
+            results.append(result)
+        return results
+
+    async def _run_single_test_case(self, test_case: TestCase) -> TestResult:
+        """Run a single test case"""
+        try:
+            # Process question
+            response = await self.question_service.process_question(
+                request=QuestionRequest(
+                    question=test_case.question,
+                    context=test_case.context
+                ),
+                user_id="evaluation_tester"
+            )
+
+            # Evaluate accuracy
+            accuracy = self._evaluate_accuracy(
+                response.answer,
+                test_case.expected_answer
+            )
+
+            # Evaluate relevance
+            relevance = self._evaluate_relevance(
+                response.answer,
+                test_case.question
+            )
+
+            # Check for hallucinations
+            hallucination = self._check_hallucination(
+                response.answer,
+                test_case.expected_answer
+            )
+
+            return TestResult(
+                test_case_id=test_case.id,
+                success=True,
+                accuracy_score=accuracy,
+                relevance_score=relevance,
+                has_hallucination=hallucination,
+                response=response
+            )
+
+        except Exception as e:
+            return TestResult(
+                test_case_id=test_case.id,
+                success=False,
+                error=str(e)
+            )
+
+    def _evaluate_accuracy(self, actual: str, expected: str) -> float:
+        """Evaluate answer accuracy"""
+        # Simple semantic similarity
+        # In production, use more sophisticated metrics
+        actual_words = set(actual.lower().split())
+        expected_words = set(expected.lower().split())
+
+        overlap = len(actual_words & expected_words)
+        union = len(actual_words | expected_words)
+
+        return overlap / union if union > 0 else 0.0
+
+    def _evaluate_relevance(self, answer: str, question: str) -> float:
+        """Evaluate answer relevance to question"""
+        # Check if answer addresses key concepts in question
+        question_keywords = self._extract_keywords(question)
+        answer_keywords = self._extract_keywords(answer)
+
+        overlap = len(question_keywords & answer_keywords)
+        return overlap / len(question_keywords) if question_keywords else 0.0
+
+    def _check_hallucination(self, answer: str, expected: str) -> bool:
+        """Check if answer contains hallucinations"""
+        # Extract entities from answer
+        answer_entities = self._extract_entities(answer)
+        expected_entities = self._extract_entities(expected)
+
+        # Check if answer has entities not in expected
+        unexpected = answer_entities - expected_entities
+
+        return len(unexpected) > 0
+
+    def _generate_report(self, results: List[TestResult]) -> EvaluationReport:
+        """Generate evaluation report"""
+        successful = [r for r in results if r.success]
+
+        return EvaluationReport(
+            total_tests=len(results),
+            successful_tests=len(successful),
+            success_rate=len(successful) / len(results) if results else 0.0,
+
+            avg_accuracy=sum(r.accuracy_score for r in successful) / len(successful) if successful else 0.0,
+            avg_relevance=sum(r.relevance_score for r in successful) / len(successful) if successful else 0.0,
+
+            hallucination_rate=sum(1 for r in successful if r.has_hallucination) / len(successful) if successful else 0.0,
+
+            per_category_results=self._group_by_category(results),
+
+            failure_analysis=self._analyze_failures(results)
+        )
+
+    def _extract_keywords(self, text: str) -> set:
+        """Extract keywords from text"""
+        # Simple implementation - remove stop words and extract nouns
+        stop_words = {'the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being'}
+        words = set(text.lower().split())
+        return words - stop_words
+
+    def _extract_entities(self, text: str) -> set:
+        """Extract named entities from text"""
+        # Simple implementation - extract capitalized words
+        import re
+        entities = re.findall(r'\b[A-Z][a-z]+\b', text)
+        return set(entities)
+```
+
+## Topic 12.6: Observability Implementation
+
+### Distributed Tracing with OpenTelemetry
+
+```python
+# app/core/observability.py
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.exporter.jaeger.thrift import JaegerExporter
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from functools import wraps
+import time
+
+# Initialize tracing
+def init_tracing(service_name: str):
+    resource = Resource(attributes={"service.name": service_name})
+
+    provider = TracerProvider(resource=resource)
+    jaeger_exporter = JaegerExporter(
+        agent_host_name=settings.JAEGER_HOST,
+        agent_port=settings.JAEGER_PORT,
+    )
+    provider.add_span_processor(BatchSpanProcessor(jaeger_exporter))
+    trace.set_tracer_provider(provider)
+
+def trace(span_name: str):
+    """Decorator for tracing functions"""
+    def decorator(func):
+        @wraps(func)
+        async def async_wrapper(*args, **kwargs):
+            tracer = trace.get_tracer(__name__)
+            with tracer.start_as_current_span(span_name) as span:
+                # Add attributes
+                span.set_attribute("function.name", func.__name__)
+                span.set_attribute("function.module", func.__module__)
+
+                try:
+                    result = await func(*args, **kwargs)
+                    span.set_status(trace.Status(trace.StatusCode.OK))
+                    return result
+                except Exception as e:
+                    span.set_status(trace.Status(trace.StatusCode.ERROR, str(e)))
+                    span.record_exception(e)
+                    raise
+
+        @wraps(func)
+        def sync_wrapper(*args, **kwargs):
+            tracer = trace.get_tracer(__name__)
+            with tracer.start_as_current_span(span_name) as span:
+                span.set_attribute("function.name", func.__name__)
+                span.set_attribute("function.module", func.__module__)
+
+                try:
+                    result = func(*args, **kwargs)
+                    span.set_status(trace.Status(trace.StatusCode.OK))
+                    return result
+                except Exception as e:
+                    span.set_status(trace.Status(trace.StatusCode.ERROR, str(e)))
+                    span.record_exception(e)
+                    raise
+
+        if asyncio.iscoroutinefunction(func):
+            return async_wrapper
+        else:
+            return sync_wrapper
+
+    return decorator
+```
+
+### Metrics with Prometheus
+
+```python
+# app/core/metrics.py
+from prometheus_client import Counter, Histogram, Gauge, start_http_server
+
+# Metrics
+questions_total = Counter(
+    'questions_total',
+    'Total number of questions processed',
+    ['status']
+)
+
+questions_duration = Histogram(
+    'questions_duration_seconds',
+    'Question processing duration',
+    buckets=[0.1, 0.5, 1.0, 2.0, 5.0, 10.0]
+)
+
+questions_confidence = Gauge(
+    'questions_confidence_score',
+    'Confidence score for questions',
+)
+
+escalations_total = Counter(
+    'escalations_total',
+    'Total number of escalations',
+    ['reason']
+)
+
+llm_tokens_total = Counter(
+    'llm_tokens_total',
+    'Total LLM tokens used',
+    ['model', 'type']  # type: input or output
+)
+
+vector_db_searches_total = Counter(
+    'vector_db_searches_total',
+    'Total vector database searches',
+)
+
+def track_metrics(metric_name: str):
+    """Decorator for tracking metrics"""
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            start_time = time.time()
+
+            try:
+                result = await func(*args, **kwargs)
+                questions_total.labels(status='success').inc()
+                return result
+            except Exception as e:
+                questions_total.labels(status='error').inc()
+                raise
+            finally:
+                duration = time.time() - start_time
+                questions_duration.observe(duration)
+
+        return wrapper
+    return decorator
+```
+
+## Topic 12.7: Full-Stack Production Checklist
+
+### Frontend
+
+- [ ] Streaming responses implemented
+- [ ] Error handling and retry logic
+- [ ] Loading states and indicators
+- [ ] User feedback mechanisms
+- [ ] Mobile responsive design
+- [ ] Accessibility (WCAG 2.1 AA)
+- [ ] Performance optimization (code splitting, lazy loading)
+
+### Backend
+
+- [ ] API endpoints implemented and documented
+- [ ] Request validation and sanitization
+- [ ] Authentication and authorization
+- [ ] Rate limiting configured
+- [ ] CORS properly configured
+- [ ] Error handling with proper HTTP status codes
+- [ ] Graceful degradation
+
+### AI/ML
+
+- [ ] Retrieval system configured and indexed
+- [ ] LLM integration with fallback
+- [ ] Confidence scoring implemented
+- [ ] Escalation logic working
+- [ ] Answer generation validated
+- [ ] Hallucination detection active
+
+### Evaluation
+
+- [ ] Offline evaluation harness ready
+- [ ] Test dataset prepared
+- [ ] Evaluation thresholds defined
+- [ ] A/B testing capability
+- [ ] Continuous evaluation pipeline
+
+### Observability
+
+- [ ] Distributed tracing configured
+- [ ] Metrics collection enabled
+- [ ] Centralized logging
+- [ ] Dashboards created
+- [ ] Alerting rules configured
+- [ ] Debugging tools available
+
+### Security
+
+- [ ] Input validation and sanitization
+- [ ] Prompt injection detection
+- [ ] PII redaction
+- [ ] Rate limiting
+- [ ] Audit logging
+- [ ] Security headers configured
+
+### Deployment
+
+- [ ] CI/CD pipeline configured
+- [ ] Automated testing in CI
+- [ ] Feature flags implemented
+- [ ] Gradual rollout capability
+- [ ] Rollback procedures tested
+- [ ] Infrastructure as code
+
+## Conclusion
+
+Building a full-stack AI application requires careful integration of frontend, backend, AI/ML components, evaluation, and observability. By following this blueprint and implementing each layer with proper error handling, monitoring, and testing, you can build production-ready AI systems that are reliable, scalable, and maintainable.
+
+In the next chapter, we'll explore Claude Code and CLI patterns for AI-assisted development.

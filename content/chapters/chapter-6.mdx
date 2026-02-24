@@ -1,0 +1,508 @@
+---
+title: "Chapter 6: The Agentic Control Loop"
+description: "Understanding perception, memory, planning, tool execution, and feedback in AI agents"
+order: 6
+readTime: 15
+---
+
+# Chapter 6: The Agentic Control Loop
+
+Agentic AI represents a system-level architecture that goes beyond simple request-response patterns. An agent is a system that observes an environment, plans actions, executes tools, updates memory, and verifies outcomes under specific constraints. This chapter explores the control loop that makes agents autonomous and effective.
+
+## Topic 6.1: Understanding the Control Loop
+
+The agentic control loop is the core pattern that enables AI systems to operate autonomously. Unlike traditional applications that follow linear execution paths, agents continuously cycle through perception, reasoning, and action.
+
+### The Five-Stage Control Loop
+
+#### Stage 1: Perception
+
+Perception is how the agent observes and understands its environment. This includes:
+
+- **State Representation**: Converting raw inputs into structured state
+- **Context Gathering**: Collecting relevant information from memory and tools
+- **Observation Validation**: Ensuring observations are accurate and complete
+
+```python
+class AgentPerception:
+    def perceive(self, inputs: dict) -> AgentState:
+        """Convert raw inputs into structured agent state"""
+        # Extract relevant features from inputs
+        state = self.extract_features(inputs)
+
+        # Validate observations
+        if not self.validate_observations(state):
+            raise PerceptionError("Invalid observations")
+
+        # Enrich with context from memory
+        context = self.memory.retrieve_relevant(state)
+        state.context = context
+
+        return state
+```
+
+#### Stage 2: Memory Update
+
+Agents maintain different types of memory to support coherent behavior:
+
+- **Short-term Memory**: Current conversation and task context
+- **Long-term Memory**: Persistent knowledge across sessions
+- **Episodic Memory**: Specific past experiences and outcomes
+- **Semantic Memory**: Abstract concepts and relationships
+
+```python
+class AgentMemory:
+    def update_memory(self, state: AgentState, action: Action, result: ActionResult):
+        """Update all memory types with new information"""
+        # Update short-term memory
+        self.short_term.add(state, action, result)
+
+        # Extract learning from result
+        learning = self.extract_learning(state, action, result)
+
+        # Store in episodic memory if significant
+        if learning.significance > 0.7:
+            self.episodic.store(learning)
+
+        # Update semantic memory with new concepts
+        self.semantic.update(learning.concepts)
+
+    def retrieve_relevant(self, state: AgentState) -> List[Memory]:
+        """Retrieve memories relevant to current state"""
+        # Vector similarity search
+        relevant = self.semantic.search(state.embedding, top_k=5)
+
+        # Add recent episodic memories
+        relevant.extend(self.episodic.recent(limit=3))
+
+        return relevant
+```
+
+#### Stage 3: Planning
+
+Planning decomposes high-level goals into executable steps:
+
+- **Goal Decomposition**: Breaking complex goals into subtasks
+- **Task Ordering**: Determining the optimal sequence of actions
+- **Resource Planning**: Ensuring required tools and data are available
+- **Contingency Planning**: Preparing for potential failures
+
+```python
+class AgentPlanner:
+    def plan(self, state: AgentState, goal: Goal) -> Plan:
+        """Generate a plan to achieve the goal from current state"""
+        # Decompose goal into subtasks
+        subtasks = self.decompose_goal(goal)
+
+        # Order subtasks by dependencies
+        ordered = self.topological_sort(subtasks)
+
+        # Select tools for each subtask
+        plan_steps = []
+        for task in ordered:
+            tool = self.select_tool(task)
+            prerequisites = self.check_prerequisites(tool, state)
+            if not prerequisites:
+                # Add prerequisite acquisition step
+                plan_steps.append(self.acquire_prerequisites(tool))
+            plan_steps.append(PlanStep(task=task, tool=tool))
+
+        # Estimate costs and risks
+        for step in plan_steps:
+            step.estimated_cost = self.estimate_cost(step)
+            step.risk_score = self.assess_risk(step)
+
+        return Plan(steps=plan_steps)
+```
+
+#### Stage 4: Tool Execution
+
+Tool execution is where the agent interacts with external systems:
+
+- **Tool Selection**: Choosing the right tool for each task
+- **Argument Preparation**: Ensuring tool inputs are valid
+- **Execution**: Calling the tool with proper error handling
+- **Result Processing**: Validating and integrating tool outputs
+
+```python
+class ToolExecutor:
+    def execute_tool(self, tool: Tool, args: dict) -> ToolResult:
+        """Execute a tool with proper validation and error handling"""
+        # Validate arguments against tool schema
+        if not tool.validate_args(args):
+            raise ToolArgumentError(f"Invalid arguments for {tool.name}")
+
+        # Check permissions
+        if not self.permissions.check(tool, args):
+            raise PermissionError(f"Insufficient permissions for {tool.name}")
+
+        # Execute with timeout and retry logic
+        try:
+            result = tool.execute(**args)
+        except TimeoutError:
+            result = ToolResult(success=False, error="Timeout")
+        except ToolError as e:
+            result = ToolResult(success=False, error=str(e))
+
+        # Validate result
+        if result.success and not tool.validate_output(result):
+            raise ToolOutputError(f"Invalid output from {tool.name}")
+
+        return result
+```
+
+#### Stage 5: Feedback and Verification
+
+Feedback determines whether the agent achieved its goal:
+
+- **Outcome Validation**: Checking if goals were achieved
+- **Error Correction**: Identifying and fixing mistakes
+- **Learning**: Updating memory based on outcomes
+- **Re-planning**: Adjusting the plan if needed
+
+```python
+class FeedbackLoop:
+    def verify_outcome(self, goal: Goal, result: ActionResult) -> VerificationResult:
+        """Verify if the achieved outcome matches the goal"""
+        # Check if goal constraints are satisfied
+        constraints_satisfied = all(
+            constraint.check(result.state)
+            for constraint in goal.constraints
+        )
+
+        # Measure goal achievement
+        achievement_score = goal.measure_achievement(result)
+
+        # Check for side effects
+        side_effects = self.detect_side_effects(result)
+
+        return VerificationResult(
+            success=constraints_satisfied and achievement_score > 0.8,
+            achievement_score=achievement_score,
+            side_effects=side_effects
+        )
+
+    def correct_errors(self, error: Error, state: AgentState) -> Correction:
+        """Generate corrections for observed errors"""
+        # Classify error type
+        error_type = self.classify_error(error)
+
+        # Select correction strategy
+        if error_type == ErrorType.ARGUMENT_ERROR:
+            return Correction(retry_with_corrected_args=True)
+        elif error_type == ErrorType.PERMISSION_ERROR:
+            return Correction(request_permissions=True)
+        elif error_type == ErrorType.PLANNING_ERROR:
+            return Correction(replan=True)
+        else:
+            return Correction(escalate_to_human=True)
+```
+
+### Complete Control Loop Example
+
+```python
+class AgenticLoop:
+    def run(self, initial_state: AgentState, goal: Goal) -> AgentResult:
+        """Execute the complete agentic control loop"""
+        state = initial_state
+        plan = None
+        iteration = 0
+        max_iterations = 10
+
+        while iteration < max_iterations:
+            iteration += 1
+
+            # Stage 1: Perceive
+            perception = self.perception.perceive(state)
+
+            # Stage 2: Update Memory
+            if iteration > 1:
+                self.memory.update_memory(state, last_action, last_result)
+
+            # Stage 3: Plan (or replan if needed)
+            if plan is None or self.should_replan(state, goal):
+                plan = self.planner.plan(state, goal)
+
+            # Stage 4: Execute next step
+            next_step = plan.steps[0]
+            try:
+                result = self.executor.execute_tool(next_step.tool, next_step.args)
+            except Exception as e:
+                result = ActionResult(success=False, error=str(e))
+
+            # Stage 5: Verify and feedback
+            verification = self.feedback.verify_outcome(goal, result)
+
+            if verification.success:
+                return AgentResult(success=True, final_state=result.state)
+
+            # Correct errors and continue
+            correction = self.feedback.correct_errors(result.error, state)
+            state = self.apply_correction(correction, state)
+
+        return AgentResult(success=False, error="Max iterations reached")
+```
+
+## Topic 6.2: Cost and Latency Budgets
+
+Production agents must operate within strict cost and latency constraints. Unbounded loops can lead to runaway costs and unacceptable response times.
+
+### Budget Enforcement
+
+```python
+class BudgetManager:
+    def __init__(self, max_cost_usd: float, max_latency_seconds: float):
+        self.max_cost = max_cost_usd
+        self.max_latency = max_latency_seconds
+        self.current_cost = 0.0
+        self.start_time = None
+
+    def check_budget(self, planned_action: Action) -> bool:
+        """Check if planned action fits within budget"""
+        estimated_cost = planned_action.estimate_cost()
+        estimated_latency = planned_action.estimate_latency()
+
+        # Check cost budget
+        if self.current_cost + estimated_cost > self.max_cost:
+            return False
+
+        # Check latency budget
+        if self.start_time:
+            elapsed = time.time() - self.start_time
+            if elapsed + estimated_latency > self.max_latency:
+                return False
+
+        return True
+
+    def record_action(self, action: Action, result: ActionResult):
+        """Record actual cost and latency of executed action"""
+        self.current_cost += result.actual_cost
+        if self.start_time is None:
+            self.start_time = time.time()
+```
+
+### Cost Optimization Strategies
+
+- **Token Budgeting**: Limit tokens per LLM call
+- **Tool Selection**: Use cheaper tools when possible
+- **Caching**: Cache expensive operation results
+- **Early Termination**: Stop when confidence is high enough
+- **Batch Processing**: Combine multiple operations
+
+```python
+class CostOptimizedPlanner:
+    def plan_with_budget(self, goal: Goal, budget: BudgetManager) -> Plan:
+        """Generate a cost-optimized plan"""
+        # Start with cheapest viable approach
+        plan = self.generate_minimal_plan(goal)
+
+        # Estimate costs
+        total_cost = sum(step.estimate_cost() for step in plan.steps)
+
+        # If within budget, add improvements
+        if total_cost < budget.max_cost * 0.7:
+            plan = self.add_redundancy_checks(plan)
+            plan = self.add_verification_steps(plan)
+
+        return plan
+```
+
+## Topic 6.3: Control Loop Implementation Checklist
+
+Use this checklist when implementing agentic control loops:
+
+### Perception
+
+- [ ] Input validation and sanitization
+- [ ] State representation schema defined
+- [ ] Context retrieval from memory implemented
+- [ ] Observation validation checks in place
+- [ ] Error handling for malformed inputs
+
+### Memory
+
+- [ ] Short-term memory with retention policy
+- [ ] Long-term memory with indexing
+- [ ] Episodic memory for significant events
+- [ ] Semantic memory with vector search
+- [ ] Memory retrieval relevance scoring
+- [ ] Memory consolidation and cleanup
+
+### Planning
+
+- [ ] Goal decomposition algorithm
+- [ ] Task dependency tracking
+- [ ] Tool selection logic
+- [ ] Prerequisite checking
+- [ ] Cost and risk estimation
+- [ ] Replanning triggers defined
+
+### Tool Execution
+
+- [ ] Tool argument validation
+- [ ] Permission checking
+- [ ] Timeout handling
+- [ ] Retry logic with exponential backoff
+- [ ] Result validation
+- [ ] Error classification and handling
+
+### Feedback
+
+- [ ] Goal achievement measurement
+- [ ] Constraint satisfaction checking
+- [ ] Side effect detection
+- [ ] Error correction strategies
+- [ ] Learning from failures
+- [ ] Re-planning on failure
+
+### Budget and Constraints
+
+- [ ] Maximum cost per execution
+- [ ] Maximum latency per execution
+- [ ] Maximum iterations per loop
+- [ ] Per-tool permissions
+- [ ] Resource limits (memory, CPU, network)
+- [ ] Budget exceeded handling
+
+### Monitoring and Observability
+
+- [ ] Loop iteration tracking
+- [ ] Decision logging
+- [ ] Tool usage tracking
+- [ ] Cost and latency metrics
+- [ ] Failure mode recording
+- [ ] Performance dashboards
+
+## Topic 6.4: Common Control Loop Pitfalls
+
+### Pitfall 1: Infinite Loops
+
+**Problem**: Agent gets stuck in a loop, repeating the same failed action.
+
+**Solution**:
+- Set maximum iteration limits
+- Detect repeated actions
+- Implement escalation on repeated failures
+- Add randomness to break loops
+
+```python
+class LoopDetector:
+    def __init__(self, window_size: int = 5):
+        self.window = []
+        self.window_size = window_size
+
+    def detect_loop(self, action: Action) -> bool:
+        """Detect if agent is in a repeating loop"""
+        self.window.append(action)
+        if len(self.window) > self.window_size:
+            self.window.pop(0)
+
+        # Check if same action repeats
+        if len(self.window) == self.window_size:
+            if all(a == self.window[0] for a in self.window):
+                return True
+
+        return False
+```
+
+### Pitfall 2: Catastrophic Forgetting
+
+**Problem**: Agent forgets important context while updating memory.
+
+**Solution**:
+- Implement importance weighting for memories
+- Use hierarchical memory (hot/warm/cold)
+- Periodic memory consolidation
+- Explicit memory preservation for critical information
+
+### Pitfall 3: Tool Abuse
+
+**Problem**: Agent uses tools inappropriately or excessively.
+
+**Solution**:
+- Strict tool contracts with preconditions
+- Usage rate limiting per tool
+- Tool output validation
+- Permission scoping
+- Audit logging for all tool use
+
+### Pitfall 4: Planning Collapse
+
+**Problem**: Agent creates overly complex plans that fail.
+
+**Solution**:
+- Start with minimal viable plans
+- Incremental plan refinement
+- Plan complexity limits
+- Replanning on failure
+- Human-in-the-loop for critical decisions
+
+## Topic 6.5: Production Control Loop Example
+
+Here's a complete example of a production-ready control loop for a document analysis agent:
+
+```python
+class DocumentAnalysisAgent:
+    def __init__(self):
+        self.perception = AgentPerception()
+        self.memory = VectorMemory()
+        self.planner = HierarchicalPlanner()
+        self.executor = SandboxedToolExecutor()
+        self.feedback = VerificationFeedback()
+        self.budget = BudgetManager(max_cost_usd=1.0, max_latency_seconds=30)
+        self.loop_detector = LoopDetector()
+
+    def analyze_document(self, document: Document, analysis_goal: str) -> AnalysisResult:
+        """Analyze a document with agentic control loop"""
+        # Initialize state
+        state = AgentState(document=document, goal=analysis_goal)
+
+        iteration = 0
+        max_iterations = 5
+
+        while iteration < max_iterations:
+            iteration += 1
+
+            # Check budget
+            if not self.budget.check_budget(None):
+                return AnalysisResult(success=False, error="Budget exceeded")
+
+            # Perceive
+            perception = self.perception.perceive(state)
+
+            # Update memory
+            self.memory.update_memory(state, None, None)
+
+            # Plan
+            plan = self.planner.plan(state, Goal(description=analysis_goal))
+
+            # Detect loops
+            if self.loop_detector.detect_loop(plan.steps[0]):
+                return AnalysisResult(success=False, error="Detected execution loop")
+
+            # Execute first step
+            step = plan.steps[0]
+            try:
+                result = self.executor.execute_tool(step.tool, step.args)
+
+                # Verify result
+                verification = self.feedback.verify_outcome(plan.goal, result)
+
+                if verification.success:
+                    return AnalysisResult(success=True, data=result.data)
+
+                # Update state with partial result
+                state = state.update(result)
+
+            except Exception as e:
+                # Log error and continue
+                state = state.add_error(str(e))
+
+        return AnalysisResult(success=False, error="Max iterations reached")
+```
+
+## Conclusion
+
+The agentic control loop is the foundation of autonomous AI systems. By implementing perception, memory, planning, tool execution, and feedback with proper constraints and verification, you can build agents that are both capable and safe. Remember to always enforce cost and latency budgets, implement proper error handling, and monitor agent behavior in production.
+
+In the next chapter, we'll explore how to design secure tool contracts and implement robust verification mechanisms.

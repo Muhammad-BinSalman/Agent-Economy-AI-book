@@ -1,7 +1,24 @@
-import { HeroSection } from "@/components/hero-section";
-import { ChapterCard } from "@/components/chapter-card";
-import { GlassContainer } from "@/components/glass-container";
-import { GradientBg } from "@/components/gradient-bg";
+import { HeroSection } from "@/components/landing/hero-section";
+import ModernEraSection from "@/components/landing/modern-era-section";
+import AgentVisualization from "@/components/ui/agent-visualization";
+import { OrbitingAvatarsCTA } from "@/components/ui/community-contribution";
+import { HeroWithMarquee } from "@/components/ui/cta-with-marquee";
+import Features from "@/components/ui/features";
+import FTEComparison from "@/components/ui/fte-comparison";
+import RadialOrbitalTimeline from "@/components/ui/radical-orbital-timeline";
+import SecondQuote from "@/components/ui/second-quote";
+
+const avatars = [
+  { src: 'https://i.pravatar.cc/150?img=11', alt: 'Contributor 1' },
+  { src: 'https://i.pravatar.cc/150?img=12', alt: 'Contributor 2' },
+  { src: 'https://i.pravatar.cc/150?img=32', alt: 'Contributor 3' },
+  { src: 'https://i.pravatar.cc/150?img=35', alt: 'Contributor 4' },
+  { src: 'https://i.pravatar.cc/150?img=44', alt: 'Contributor 5' },
+  { src: 'https://i.pravatar.cc/150?img=53', alt: 'Contributor 6' },
+  { src: 'https://i.pravatar.cc/150?img=59', alt: 'Contributor 7' },
+  { src: 'https://i.pravatar.cc/150?img=68', alt: 'Contributor 8' },
+];
+
 
 export default function HomePage() {
   // All 5 chapters now displayed
@@ -32,36 +49,38 @@ export default function HomePage() {
       order: 5,
     },
   ];
-
+  const coverImageUrl = "https://images.unsplash.com/photo-1551269901-5c5e14c25df7?auto=format&fit=crop&q=80&w=800";
   return (
     <>
-      <GradientBg />
       <main className="min-h-screen">
         <HeroSection
-          title="AI-Native Driven Development"
-          description="Master the art of building AI-native applications from the ground up"
-          ctaText="Start Reading"
-          ctaHref="/book"
+          heading="Building the AI Agent Economy"
+          tagline="A practical, AI-native e-book on Agentic AI, custom agents, CLI agents, and Digital AI Full-Time Equivalents (FTEs)."
+          supportingText="Learn how to design, build, and deploy autonomous AI agents that turn knowledge into scalable digital workers."
+          buttonText="Start Reading"
+          secondaryButtonText="View on GitHub"
+          secondaryButtonHref="https://github.com"
+          bookTitle="The AI Agent Economy"
+          coverImageUrl={coverImageUrl}
         />
 
-        <section className="container mx-auto px-4 py-20">
-          <GlassContainer>
-            <div className="p-8">
-              <h2 className="text-3xl font-bold mb-8 text-center">
-                What You'll Learn
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {chapters.map((chapter) => (
-                  <ChapterCard
-                    key={chapter.order}
-                    chapter={chapter}
-                    href="/book"
-                  />
-                ))}
-              </div>
-            </div>
-          </GlassContainer>
-        </section>
+        <Features />
+        <ModernEraSection />
+        <AgentVisualization />
+        <RadialOrbitalTimeline />
+        <FTEComparison />
+        <OrbitingAvatarsCTA
+          title="Co-Architect the Future"
+          description="The AI Agent Economy is a living, open-source publication. We invite researchers, engineers, and architects to contribute their blueprints and push the boundaries of autonomous labor."
+          buttonText="Join the Repository"
+          buttonHref="https://github.com"
+          buttonTarget="_blank"
+          avatars={avatars}
+          orbitRadius={24}
+          orbitDuration={60}
+        />
+        <HeroWithMarquee />
+        <SecondQuote />
       </main>
     </>
   );

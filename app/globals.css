@@ -5,24 +5,24 @@
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --foreground: 20 14.3% 4.1%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 20 14.3% 4.1%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --popover-foreground: 20 14.3% 4.1%;
+    --primary: 24 9.8% 10%;
+    --primary-foreground: 60 9.1% 97.8%;
+    --secondary: 60 4.8% 95.9%;
+    --secondary-foreground: 24 9.8% 10%;
+    --muted: 60 4.8% 95.9%;
+    --muted-foreground: 25 5.3% 44.7%;
+    --accent: 60 4.8% 95.9%;
+    --accent-foreground: 24 9.8% 10%;
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --destructive-foreground: 60 9.1% 97.8%;
+    --border: 20 5.9% 90%;
+    --input: 20 5.9% 90%;
+    --ring: 20 14.3% 4.1%;
     --chart-1: 12 76% 61%;
     --chart-2: 173 58% 39%;
     --chart-3: 197 37% 24%;
@@ -32,25 +32,25 @@
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --background: 20 14.3% 4.1%;
+    --foreground: 60 9.1% 97.8%;
+    --card: 20 14.3% 4.1%;
+    --card-foreground: 60 9.1% 97.8%;
+    --popover: 20 14.3% 4.1%;
+    --popover-foreground: 60 9.1% 97.8%;
+    --primary: 60 9.1% 97.8%;
+    --primary-foreground: 24 9.8% 10%;
+    --secondary: 12 6.5% 15.1%;
+    --secondary-foreground: 60 9.1% 97.8%;
+    --muted: 12 6.5% 15.1%;
+    --muted-foreground: 24 5.4% 63.9%;
+    --accent: 12 6.5% 15.1%;
+    --accent-foreground: 60 9.1% 97.8%;
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --destructive-foreground: 60 9.1% 97.8%;
+    --border: 12 6.5% 15.1%;
+    --input: 12 6.5% 15.1%;
+    --ring: 24 5.7% 82.9%;
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
@@ -88,12 +88,145 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Markdown-specific styles */
+.prose {
+  /* Anchor links for headings */
+  .anchor {
+    @apply opacity-0 hover:opacity-100 transition-opacity;
+  }
+
+  h1 .anchor,
+  h2 .anchor,
+  h3 .anchor,
+  h4 .anchor,
+  h5 .anchor,
+  h6 .anchor {
+    @apply ml-2 text-muted-foreground;
+  }
+
+  /* Better line breaks for paragraphs */
+  p {
+    @apply my-4 leading-7;
+  }
+
+  /* Enhanced list styling - CUSTOM BULLETS */
+  ul {
+    @apply my-6 ml-8;
+    list-style: none;
+    position: relative;
+  }
+
+  ul li {
+    @apply my-3 pl-6;
+    position: relative;
+  }
+
+  ul li::before {
+    content: "•";
+    @apply absolute left-0 text-primary text-2xl leading-none;
+    font-weight: 900;
+  }
+
+  /* Nested bullets */
+  ul ul li::before {
+    content: "◦";
+    @apply text-xl text-primary/70;
+  }
+
+  ul ul ul li::before {
+    content: "▪";
+    @apply text-lg text-primary/50;
+  }
+
+  /* Ordered list styling */
+  ol {
+    @apply my-6 ml-8;
+    counter-reset: item;
+  }
+
+  ol li {
+    @apply my-3 pl-6;
+    position: relative;
+    counter-increment: item;
+  }
+
+  ol li::before {
+    content: counter(item) ".";
+    @apply absolute left-0 text-primary text-xl leading-none;
+    font-weight: 900;
+  }
+
+  li {
+    @apply leading-7 text-lg;
+  }
+
+  /* Task lists */
+  input[type="checkbox"] {
+    @apply mr-3 h-5 w-5 rounded border-2 border-primary accent-primary cursor-pointer;
+  }
+
+  /* Table improvements */
+  table {
+    @apply my-6 block overflow-x-auto;
+  }
+
+  /* Code block improvements */
+  pre {
+    @apply relative;
+  }
+
+  /* Link improvements */
+  a {
+    @apply transition-colors duration-200;
+  }
+
+  /* Blockquote improvements */
+  blockquote {
+    @apply border-l-4 border-primary pl-6 py-4 my-8 bg-gradient-to-r from-primary/5 to-transparent italic text-lg rounded-r-lg;
+  }
+
+  /* HR improvements */
+  hr {
+    @apply my-12 border-t-2 border-border;
+  }
+
+  /* Make headings extra bold */
+  h1, h2 {
+    @apply font-black;
+  }
+
+  h3, h4 {
+    @apply font-bold italic;
+  }
+
+  /* Strong text extra bold */
+  strong {
+    @apply font-black;
+  }
+
+  /* Emphasis italic and bold */
+  em {
+    @apply italic font-semibold;
+  }
+}
+
 /* Highlight.js theme for code blocks */
 /* Dark theme by default for better contrast */
 .hljs {
   background: #1e1e1e;
   padding: 1rem;
   border-radius: 0.5rem;
+}
+
+/* Light theme for highlight.js */
+@media (prefers-color-scheme: light) {
+  .hljs {
+    background: #f6f8fa;
+  }
+}
+
+.dark .hljs {
+  background: #1e1e1e;
 }
 
 /* Gradient animation */
@@ -119,3 +252,10 @@ html {
 .delay-200 {
   animation-delay: 0.2s;
 }
+
+
+
+
+
+
+

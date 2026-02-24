@@ -1,0 +1,949 @@
+---
+title: "Chapter 8: Multi-Agent Systems and Orchestration"
+description: "Patterns and practices for coordinating multiple AI agents"
+order: 8
+readTime: 16
+---
+
+# Chapter 8: Multi-Agent Systems and Orchestration
+
+Multi-agent systems enable complex problem-solving through specialized agents working together. However, they introduce new challenges: coordination, communication, failure handling, and emergent behavior. This chapter covers production patterns for building reliable multi-agent systems.
+
+## Topic 8.1: Coordinator/Worker/Reviewer Patterns
+
+The most common multi-agent pattern separates concerns across three roles: coordination, execution, and validation.
+
+### Coordinator Agent
+
+The coordinator manages the workflow, delegates tasks, and aggregates results.
+
+```python
+class CoordinatorAgent:
+    """Coordinates multiple worker agents"""
+
+    def __init__(self):
+        self.workers = {
+            "researcher": ResearcherAgent(),
+            "analyst": AnalystAgent(),
+            "writer": WriterAgent(),
+        }
+        self.reviewer = ReviewerAgent()
+        self.message_queue = MessageQueue()
+
+    def execute_task(self, task: Task) -> TaskResult:
+        """Coordinate task execution across workers"""
+        # 1. Decompose task into subtasks
+        subtasks = self.decompose_task(task)
+
+        # 2. Assign subtasks to workers
+        assignments = self.assign_subtasks(subtasks)
+
+        # 3. Execute subtasks in parallel where possible
+        results = []
+        for assignment in assignments:
+            if assignment.can_parallelize:
+                results.append(self.execute_async(assignment))
+            else:
+                results.append(self.execute_sequential(assignment))
+
+        # 4. Aggregate results
+        aggregated = self.aggregate_results(results)
+
+        # 5. Review and validate
+        review = self.reviewer.review(aggregated)
+
+        if not review.approved:
+            # Apply feedback and retry
+            return self.retry_with_feedback(task, review.feedback)
+
+        return TaskResult(success=True, data=aggregated)
+
+    def decompose_task(self, task: Task) -> List[SubTask]:
+        """Break task into manageable subtasks"""
+        prompt = f"""
+        Decompose the following task into subtasks:
+        {task.description}
+
+        Return a list of subtasks with:
+        - description
+        - required_capabilities
+        - dependencies (list of subtask IDs)
+        - can_parallelize (bool)
+        """
+
+        response = self.llm.complete(prompt)
+        return self.parse_subtasks(response)
+
+    def assign_subtasks(self, subtasks: List[SubTask]) -> List[Assignment]:
+        """Assign subtasks to appropriate workers"""
+        assignments = []
+        for subtask in subtasks:
+            # Find worker with required capabilities
+            worker = self.find_best_worker(subtask.required_capabilities)
+            assignments.append(Assignment(
+                subtask=subtask,
+                worker=worker,
+                can_parallelize=subtask.can_parallelize
+            ))
+        return assignments
+```
+
+### Worker Agents
+
+Workers specialize in specific tasks with bounded permissions.
+
+```python
+class ResearcherAgent:
+    """Research agent with web search and document retrieval capabilities"""
+
+    def __init__(self):
+        self.capabilities = ["web_search", "document_retrieval", "fact_checking"]
+        self.permissions = ["web:read", "database:read"]
+        self.tools = [
+            WebSearchTool(),
+            DatabaseQueryTool(),
+            DocumentRetrievalTool()
+        ]
+
+    def execute(self, subtask: SubTask) -> SubTaskResult:
+        """Execute research subtask"""
+        # Plan research approach
+        plan = self.plan_research(subtask)
+
+        # Execute research steps
+        findings = []
+        for step in plan.steps:
+            try:
+                result = self.execute_step(step)
+                findings.append(result)
+            except Exception as e:
+                logging.warning(f"Research step failed: {e}")
+                findings.append(StepResult(success=False, error=str(e)))
+
+        # Synthesize findings
+        synthesis = self.synthesize_findings(findings)
+
+        return SubTaskResult(
+            success=True,
+            data=findings,
+            synthesis=synthesis
+        )
+
+class AnalystAgent:
+    """Analyst agent with data processing and reasoning capabilities"""
+
+    def __init__(self):
+        self.capabilities = ["data_analysis", "reasoning", "pattern_recognition"]
+        self.permissions = ["data:read", "computation:execute"]
+        self.tools = [
+            DataAnalysisTool(),
+            StatisticalTool(),
+            VisualizationTool()
+        ]
+
+class WriterAgent:
+    """Writer agent with content generation capabilities"""
+
+    def __init__(self):
+        self.capabilities = ["content_generation", "editing", "formatting"]
+        self.permissions = ["content:write"]
+        self.tools = [
+            TextGenerationTool(),
+            FormattingTool(),
+            TemplateTool()
+        ]
+```
+
+### Reviewer Agent
+
+The reviewer validates outputs and provides feedback.
+
+```python
+class ReviewerAgent:
+    """Reviews and validates agent outputs"""
+
+    def __init__(self):
+        self.validation_criteria = {
+            "accuracy": self.check_accuracy,
+            "completeness": self.check_completeness,
+            "consistency": self.check_consistency,
+            "safety": self.check_safety,
+            "quality": self.check_quality
+        }
+
+    def review(self, output: Any) -> Review:
+        """Review output against multiple criteria"""
+        results = {}
+        for criterion, checker in self.validation_criteria.items():
+            results[criterion] = checker(output)
+
+        # Calculate overall score
+        scores = [r["score"] for r in results.values()]
+        overall_score = sum(scores) / len(scores)
+
+        # Determine approval
+        approved = overall_score >= 0.8 and all(
+            r["passed"] for r in results.values()
+        )
+
+        # Generate feedback
+        feedback = self.generate_feedback(results)
+
+        return Review(
+            approved=approved,
+            score=overall_score,
+            criteria_results=results,
+            feedback=feedback
+        )
+
+    def check_safety(self, output: Any) -> Dict[str, Any]:
+        """Check for safety issues"""
+        # Check for prompt injection
+        if self._contains_injection(output):
+            return {"passed": False, "score": 0.0, "reason": "Prompt injection detected"}
+
+        # Check for sensitive data
+        if self._contains_sensitive_data(output):
+            return {"passed": False, "score": 0.0, "reason": "Sensitive data leaked"}
+
+        # Check for harmful content
+        if self._contains_harmful_content(output):
+            return {"passed": False, "score": 0.0, "reason": "Harmful content detected"}
+
+        return {"passed": True, "score": 1.0}
+```
+
+## Topic 8.2: Agent Topologies
+
+Different communication patterns suit different use cases.
+
+### Chain Topology
+
+Agents execute sequentially, passing results to the next agent.
+
+```python
+class ChainTopology:
+    """Sequential agent execution"""
+
+    def __init__(self, agents: List[Agent]):
+        self.agents = agents
+
+    def execute(self, initial_input: Any) -> ChainResult:
+        """Execute agents in sequence"""
+        current_input = initial_input
+        trace = []
+
+        for i, agent in enumerate(self.agents):
+            try:
+                # Execute agent
+                result = agent.execute(current_input)
+
+                # Trace execution
+                trace.append(ChainTrace(
+                    agent_index=i,
+                    agent_name=agent.name,
+                    input=current_input,
+                    output=result
+                ))
+
+                # Pass result to next agent
+                current_input = result
+
+            except Exception as e:
+                # Agent failed, halt chain
+                return ChainResult(
+                    success=False,
+                    error=f"Agent {i} failed: {e}",
+                    trace=trace
+                )
+
+        return ChainResult(
+            success=True,
+            final_output=current_input,
+            trace=trace
+        )
+```
+
+### Hub-and-Spoke Topology
+
+A central coordinator manages multiple independent agents.
+
+```python
+class HubAndSpokeTopology:
+    """Central coordinator with independent worker agents"""
+
+    def __init__(self, coordinator: CoordinatorAgent, workers: List[Agent]):
+        self.coordinator = coordinator
+        self.workers = workers
+
+    def execute(self, task: Task) -> HubAndSpokeResult:
+        """Execute task with hub-and-spoke topology"""
+        # Coordinator assigns subtasks to workers
+        assignments = self.coordinator.assign_task(task, self.workers)
+
+        # Execute workers in parallel
+        futures = []
+        with ThreadPoolExecutor(max_workers=len(self.workers)) as executor:
+            for assignment in assignments:
+                future = executor.submit(
+                    assignment.worker.execute,
+                    assignment.subtask
+                )
+                futures.append(future)
+
+        # Collect results
+        results = []
+        for future in as_completed(futures):
+            try:
+                result = future.result()
+                results.append(result)
+            except Exception as e:
+                logging.error(f"Worker failed: {e}")
+                results.append(AgentResult(success=False, error=str(e)))
+
+        # Coordinator aggregates results
+        aggregated = self.coordinator.aggregate(results)
+
+        return HubAndSpokeResult(
+            success=all(r.success for r in results),
+            worker_results=results,
+            aggregated_output=aggregated
+        )
+```
+
+### Mesh Topology
+
+Agents communicate directly with each other in a network.
+
+```python
+class MeshTopology:
+    """Fully connected agent network"""
+
+    def __init__(self, agents: List[Agent]):
+        self.agents = agents
+        self.message_bus = MessageBus()
+        self.discovery = ServiceDiscovery()
+
+    def execute(self, task: Task) -> MeshResult:
+        """Execute task with mesh topology"""
+        # Register all agents with discovery service
+        for agent in self.agents:
+            self.discovery.register(agent)
+
+        # Broadcast task to all agents
+        self.message_bus.broadcast(Message(
+            type="task",
+            content=task,
+            sender="coordinator"
+        ))
+
+        # Agents negotiate and self-organize
+        execution_plan = self.negotiate_plan(task)
+
+        # Execute according to plan
+        results = {}
+        for phase in execution_plan.phases:
+            for agent_task in phase.tasks:
+                agent = self.discovery.find_agent(agent_task.agent_id)
+                result = agent.execute(agent_task.subtask)
+                results[agent_task.agent_id] = result
+
+                # Share results with relevant agents
+                self.share_results(result, agent_task.interested_agents)
+
+        return MeshResult(
+            success=all(r.success for r in results.values()),
+            agent_results=results
+        )
+
+    def negotiate_plan(self, task: Task) -> ExecutionPlan:
+        """Agents negotiate execution plan"""
+        # Agents bid on subtasks
+        bids = []
+        for agent in self.agents:
+            if agent.can_handle(task):
+                bid = agent.bid(task)
+                bids.append(Bid(agent_id=agent.id, bid=bid))
+
+        # Select best bids
+        selected_bids = self.select_bids(bids)
+
+        # Organize into execution phases
+        phases = self.organize_phases(selected_bids)
+
+        return ExecutionPlan(phases=phases)
+```
+
+## Topic 8.3: Communication Protocols
+
+Standardized message formats enable reliable agent communication.
+
+### Message Format
+
+```python
+@dataclass
+class AgentMessage:
+    """Standard message format for agent communication"""
+
+    # Message identification
+    message_id: str
+    timestamp: datetime
+    correlation_id: str  # Links related messages
+
+    # Sender and receiver
+    sender_id: str
+    sender_role: str  # "coordinator", "worker", "reviewer"
+    receiver_id: Optional[str]  # None for broadcast
+
+    # Message content
+    message_type: MessageType  # "task", "result", "query", "response", "error"
+    content: Dict[str, Any]
+
+    # Metadata
+    priority: int  # 0-10, higher is more urgent
+    requires_ack: bool  # Whether acknowledgment is required
+    timeout_seconds: Optional[float]  # Message timeout
+
+    # Context
+    context: Dict[str, Any]  # Additional context information
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert message to dictionary for transport"""
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "AgentMessage":
+        """Create message from dictionary"""
+        return cls(**data)
+```
+
+### Message Bus Implementation
+
+```python
+class MessageBus:
+    """Async message bus for agent communication"""
+
+    def __init__(self):
+        self.queues = {}  # agent_id -> Queue
+        self.subscriptions = {}  # message_type -> [agent_ids]
+        self.lock = asyncio.Lock()
+
+    async def send(self, message: AgentMessage) -> bool:
+        """Send message to receiver(s)"""
+        if message.receiver_id:
+            # Point-to-point message
+            return await self._send_to_agent(message.receiver_id, message)
+        else:
+            # Broadcast message
+            return await self._broadcast(message)
+
+    async def _send_to_agent(self, agent_id: str, message: AgentMessage) -> bool:
+        """Send message to specific agent"""
+        async with self.lock:
+            if agent_id not in self.queues:
+                return False
+
+            await self.queues[agent_id].put(message)
+
+            # Wait for acknowledgment if required
+            if message.requires_ack:
+                await self._wait_for_ack(message)
+
+            return True
+
+    async def _broadcast(self, message: AgentMessage) -> bool:
+        """Broadcast message to all subscribers"""
+        async with self.lock:
+            subscribers = self.subscriptions.get(message.message_type, [])
+
+            for subscriber_id in subscribers:
+                await self.queues[subscriber_id].put(message)
+
+        return True
+
+    def register_agent(self, agent_id: str, subscriptions: List[MessageType]):
+        """Register agent and its subscriptions"""
+        self.queues[agent_id] = asyncio.Queue()
+
+        for message_type in subscriptions:
+            if message_type not in self.subscriptions:
+                self.subscriptions[message_type] = []
+            self.subscriptions[message_type].append(agent_id)
+
+    async def receive(self, agent_id: str, timeout: float = 1.0) -> Optional[AgentMessage]:
+        """Receive message for agent"""
+        if agent_id not in self.queues:
+            return None
+
+        try:
+            return await asyncio.wait_for(
+                self.queues[agent_id].get(),
+                timeout=timeout
+            )
+        except asyncio.TimeoutError:
+            return None
+```
+
+## Topic 8.4: Coordination Challenges
+
+Multi-agent systems face unique coordination challenges.
+
+### Deadlock Prevention
+
+```python
+class DeadlockDetector:
+    """Detect and prevent deadlocks in multi-agent systems"""
+
+    def __init__(self):
+        self.wait_graph = {}  # agent_id -> [agents it's waiting for]
+        self.lock = Lock()
+
+    def check_deadlock(self, agent_id: str, waiting_for: List[str]) -> bool:
+        """Check if waiting for agents would cause deadlock"""
+        with self.lock:
+            # Add wait relationships to graph
+            self.wait_graph[agent_id] = waiting_for
+
+            # Check for cycles
+            if self._has_cycle():
+                # Remove the wait relationships
+                del self.wait_graph[agent_id]
+                return True
+
+            return False
+
+    def _has_cycle(self) -> bool:
+        """Check if wait graph has cycles"""
+        visited = set()
+        rec_stack = set()
+
+        def dfs(node):
+            visited.add(node)
+            rec_stack.add(node)
+
+            for neighbor in self.wait_graph.get(node, []):
+                if neighbor not in visited:
+                    if dfs(neighbor):
+                        return True
+                elif neighbor in rec_stack:
+                    return True
+
+            rec_stack.remove(node)
+            return False
+
+        for node in self.wait_graph:
+            if node not in visited:
+                if dfs(node):
+                    return True
+
+        return False
+```
+
+### Race Condition Handling
+
+```python
+class ConflictResolver:
+    """Resolve conflicts when multiple agents access shared resources"""
+
+    def __init__(self):
+        self.locks = {}  # resource_id -> Lock
+        self.pending_requests = []
+
+    async def acquire_resource(self, agent_id: str, resource_id: str) -> bool:
+        """Acquire lock on resource"""
+        if resource_id not in self.locks:
+            self.locks[resource_id] = asyncio.Lock()
+
+        # Try to acquire lock
+        acquired = await self.locks[resource_id].acquire(blocking=False)
+
+        if not acquired:
+            # Add to pending queue
+            self.pending_requests.append({
+                "agent_id": agent_id,
+                "resource_id": resource_id,
+                "timestamp": datetime.now()
+            })
+            return False
+
+        return True
+
+    def release_resource(self, agent_id: str, resource_id: str):
+        """Release lock on resource"""
+        if resource_id in self.locks:
+            self.locks[resource_id].release()
+
+            # Process next pending request
+            next_request = self._get_next_pending(resource_id)
+            if next_request:
+                self.pending_requests.remove(next_request)
+                # Notify agent
+                asyncio.create_task(
+                    self._notify_agent(next_request["agent_id"], resource_id)
+                )
+```
+
+### Consensus Mechanisms
+
+```python
+class ConsensusManager:
+    """Manage consensus among multiple agents"""
+
+    def __init__(self, agents: List[str]):
+        self.agents = agents
+        self.quorum = len(agents) // 2 + 1  # Simple majority
+
+    async def achieve_consensus(self, proposal: Proposal) -> ConsensusResult:
+        """Achieve consensus on proposal"""
+        # Send proposal to all agents
+        votes = {}
+        for agent_id in self.agents:
+            vote = await self._request_vote(agent_id, proposal)
+            votes[agent_id] = vote
+
+        # Count votes
+        approve_count = sum(1 for v in votes.values() if v == "approve")
+
+        if approve_count >= self.quorum:
+            return ConsensusResult(
+                approved=True,
+                votes=votes,
+                consensus_level=approve_count / len(self.agents)
+            )
+        else:
+            return ConsensusResult(
+                approved=False,
+                votes=votes,
+                reason="Insufficient votes for consensus"
+            )
+
+    async def _request_vote(self, agent_id: str, proposal: Proposal) -> str:
+        """Request vote from agent"""
+        # Implement voting logic
+        pass
+```
+
+## Topic 8.5: Role Specialization and Bounded Permissions
+
+Specialized roles with bounded permissions reduce blast radius.
+
+### Role Definitions
+
+```python
+@dataclass
+class AgentRole:
+    """Defines an agent's role and permissions"""
+    name: str
+    description: str
+    capabilities: List[str]
+    permissions: List[str]
+    constraints: Dict[str, Any]
+
+# Predefined roles
+ROLES = {
+    "researcher": AgentRole(
+        name="researcher",
+        description="Conducts research and gathers information",
+        capabilities=["web_search", "document_retrieval", "fact_checking"],
+        permissions=["web:read", "database:read"],
+        constraints={
+            "max_requests_per_minute": 60,
+            "allowed_domains": ["*.edu", "*.gov", "wikipedia.org"],
+            "max_results_per_query": 50
+        }
+    ),
+    "analyst": AgentRole(
+        name="analyst",
+        description="Analyzes data and generates insights",
+        capabilities=["data_analysis", "statistical_analysis", "visualization"],
+        permissions=["data:read", "computation:execute"],
+        constraints={
+            "max_data_size_mb": 100,
+            "max_computation_time_seconds": 30,
+            "allowed_operations": ["aggregate", "filter", "sort", "group"]
+        }
+    ),
+    "writer": AgentRole(
+        name="writer",
+        description="Generates and edits content",
+        capabilities=["content_generation", "editing", "formatting"],
+        permissions=["content:write", "template:read"],
+        constraints={
+            "max_output_length": 10000,
+            "allowed_templates": ["report", "summary", "article"],
+            "forbidden_topics": ["medical_advice", "legal_advice"]
+        }
+    )
+}
+```
+
+### Permission Enforcement
+
+```python
+class PermissionEnforcer:
+    """Enforce role-based permissions for agents"""
+
+    def __init__(self):
+        self.roles = ROLES
+        self.audit_log = []
+
+    def check_permission(self, agent_id: str, role: str, permission: str, context: Dict) -> bool:
+        """Check if agent has permission for operation"""
+        if role not in self.roles:
+            return False
+
+        role_def = self.roles[role]
+
+        # Check if permission is in role's permissions
+        if permission not in role_def.permissions:
+            self._log_denied(agent_id, role, permission, "Permission not in role")
+            return False
+
+        # Check constraints
+        for constraint_name, constraint_value in role_def.constraints.items():
+            if not self._check_constraint(constraint_name, constraint_value, context):
+                self._log_denied(agent_id, role, permission, f"Constraint {constraint_name} violated")
+                return False
+
+        # Log allowed permission
+        self._log_allowed(agent_id, role, permission)
+        return True
+
+    def _check_constraint(self, name: str, value: Any, context: Dict) -> bool:
+        """Check if constraint is satisfied"""
+        if name == "max_requests_per_minute":
+            request_count = self._count_requests_last_minute(context)
+            return request_count <= value
+        elif name == "max_data_size_mb":
+            data_size = context.get("data_size_mb", 0)
+            return data_size <= value
+        elif name == "max_computation_time_seconds":
+            computation_time = context.get("computation_time_seconds", 0)
+            return computation_time <= value
+        # ... other constraint checks
+        return True
+
+    def _log_allowed(self, agent_id: str, role: str, permission: str):
+        """Log allowed permission"""
+        self.audit_log.append({
+            "timestamp": datetime.now(),
+            "agent_id": agent_id,
+            "role": role,
+            "permission": permission,
+            "allowed": True
+        })
+
+    def _log_denied(self, agent_id: str, role: str, permission: str, reason: str):
+        """Log denied permission"""
+        self.audit_log.append({
+            "timestamp": datetime.now(),
+            "agent_id": agent_id,
+            "role": role,
+            "permission": permission,
+            "allowed": False,
+            "reason": reason
+        })
+```
+
+## Topic 8.6: Mini Case Study - Multi-Agent Code Review System
+
+Let's build a multi-agent system for automated code review.
+
+### System Architecture
+
+```python
+class CodeReviewSystem:
+    """Multi-agent system for code review"""
+
+    def __init__(self):
+        # Coordinator
+        self.coordinator = ReviewCoordinator()
+
+        # Specialized workers
+        self.syntax_checker = SyntaxCheckerAgent()
+        self.style_checker = StyleCheckerAgent()
+        self.security_analyzer = SecurityAnalyzerAgent()
+        self.performance_analyzer = PerformanceAnalyzerAgent()
+        self.test_generator = TestGeneratorAgent()
+
+        # Reviewer
+        self.final_reviewer = FinalReviewerAgent()
+
+        # Message bus
+        self.message_bus = MessageBus()
+
+        # Register agents
+        self.message_bus.register_agent("coordinator", ["task", "result"])
+        self.message_bus.register_agent("syntax_checker", ["task", "result"])
+        self.message_bus.register_agent("style_checker", ["task", "result"])
+        self.message_bus.register_agent("security_analyzer", ["task", "result"])
+        self.message_bus.register_agent("performance_analyzer", ["task", "result"])
+        self.message_bus.register_agent("test_generator", ["task", "result"])
+        self.message_bus.register_agent("final_reviewer", ["task", "result"])
+
+    async def review_code(self, code: str, language: str) -> CodeReviewResult:
+        """Review code using multiple agents"""
+        # Coordinator creates review plan
+        task = ReviewTask(code=code, language=language)
+
+        # Parallel checks (syntax, style, security)
+        parallel_results = await asyncio.gather(
+            self.syntax_checker.execute(task),
+            self.style_checker.execute(task),
+            self.security_analyzer.execute(task),
+            self.performance_analyzer.execute(task)
+        )
+
+        # Generate tests (depends on other results)
+        test_task = TestGenerationTask(
+            code=code,
+            analysis_results=parallel_results
+        )
+        test_result = await self.test_generator.execute(test_task)
+
+        # Final review
+        final_task = FinalReviewTask(
+            code=code,
+            analysis_results=parallel_results,
+            tests=test_result
+        )
+        final_result = await self.final_reviewer.execute(final_task)
+
+        return CodeReviewResult(
+            syntax=parallel_results[0],
+            style=parallel_results[1],
+            security=parallel_results[2],
+            performance=parallel_results[3],
+            tests=test_result,
+            final_review=final_result
+        )
+```
+
+### Specialized Agents
+
+```python
+class SecurityAnalyzerAgent:
+    """Agent specialized in security analysis"""
+
+    def __init__(self):
+        self.role = ROLES["analyst"]
+        self.permissions = ["code:read", "security:analyze"]
+        self.tools = [
+            VulnerabilityScannerTool(),
+            SecretDetectorTool(),
+            DependencyCheckerTool()
+        ]
+
+    async def execute(self, task: ReviewTask) -> SecurityAnalysisResult:
+        """Execute security analysis"""
+        # Check for common vulnerabilities
+        vulnerabilities = await self._check_vulnerabilities(task.code)
+
+        # Check for secrets
+        secrets = await self._check_secrets(task.code)
+
+        # Check dependencies
+        dependency_issues = await self._check_dependencies(task.code, task.language)
+
+        # Calculate security score
+        security_score = self._calculate_security_score(
+            vulnerabilities, secrets, dependency_issues
+        )
+
+        return SecurityAnalysisResult(
+            vulnerabilities=vulnerabilities,
+            secrets=secrets,
+            dependency_issues=dependency_issues,
+            security_score=security_score
+        )
+
+class PerformanceAnalyzerAgent:
+    """Agent specialized in performance analysis"""
+
+    async def execute(self, task: ReviewTask) -> PerformanceAnalysisResult:
+        """Execute performance analysis"""
+        # Analyze time complexity
+        complexity = await self._analyze_complexity(task.code, task.language)
+
+        # Check for performance anti-patterns
+        anti_patterns = await self._check_anti_patterns(task.code, task.language)
+
+        # Suggest optimizations
+        optimizations = await self._suggest_optimizations(task.code, complexity)
+
+        return PerformanceAnalysisResult(
+            time_complexity=complexity,
+            anti_patterns=anti_patterns,
+            optimizations=optimizations
+        )
+```
+
+## Topic 8.7: Multi-Agent System Checklist
+
+Use this checklist when designing multi-agent systems:
+
+### Architecture
+
+- [ ] Agent roles and responsibilities defined
+- [ ] Communication topology selected (chain/hub-spoke/mesh)
+- [ ] Message format standardized
+- [ ] Coordination pattern implemented
+- [ ] Scalability considered
+
+### Communication
+
+- [ ] Message bus or queue system implemented
+- [ ] Message serialization/deserialization
+- [ ] Message routing and filtering
+- [ ] Broadcast and point-to-point messaging
+- [ ] Message acknowledgment and retries
+- [ ] Dead letter queue for failed messages
+
+### Coordination
+
+- [ ] Deadlock detection and prevention
+- [ ] Race condition handling
+- [ ] Conflict resolution mechanisms
+- [ ] Consensus algorithms (if needed)
+- [ ] Resource allocation and locking
+
+### Security
+
+- [ ] Role-based access control
+- [ ] Bounded permissions per agent
+- [ ] Audit logging for all actions
+- [ ] Message authentication
+- [ ] Authorization checks before resource access
+- [ ] Sandboxing for untrusted agents
+
+### Reliability
+
+- [ ] Failure detection mechanisms
+- [ ] Retry logic with exponential backoff
+- [ ] Circuit breakers for failing agents
+- [ ] Graceful degradation
+- [ ] Health checks for all agents
+- [ ] Automatic agent restart
+
+### Observability
+
+- [ ] Distributed tracing
+- [ ] Metrics for each agent
+- [ ] Centralized logging
+- [ ] Performance monitoring
+- [ ] Error tracking and alerting
+- [ ] Debugging tools
+
+### Testing
+
+- [ ] Unit tests for each agent
+- [ ] Integration tests for communication
+- [ ] Load testing for message throughput
+- [ ] Chaos engineering for failure scenarios
+- [ ] End-to-end testing
+
+## Conclusion
+
+Multi-agent systems enable complex problem-solving but require careful design of communication, coordination, and security. By using proven patterns like coordinator/worker/reviewer, implementing proper message protocols, and enforcing bounded permissions, you can build reliable multi-agent systems for production use.
+
+In the next chapter, we'll explore Digital FTEs and how to build AI systems that operate as reliable team members.

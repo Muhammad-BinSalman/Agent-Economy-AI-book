@@ -1,0 +1,150 @@
+---
+title: "Markdown Test Page"
+description: "Test all markdown rendering features"
+order: 99
+readTime: 5
+---
+
+# Markdown Rendering Test
+
+This page demonstrates all the markdown features properly rendered.
+
+## Headings Test
+
+### H3 Subheading
+#### H4 Sub-subheading
+
+All headings should have proper sizing and spacing.
+
+## Text Formatting
+
+This is **bold text** and this is *italic text*. You can also use ***bold and italic*** together.
+
+This is ~~strikethrough text~~ (GitHub Flavored Markdown).
+
+## Paragraphs and Line Breaks
+
+This is the first paragraph with proper spacing and line height.
+
+This is the second paragraph. Notice the comfortable spacing between paragraphs for better readability.
+
+Soft line breaks are also supported
+when you want to break a line
+without creating a new paragraph.
+
+## Links
+
+Visit [our homepage](/) or navigate to the [book page](/book).
+
+External links work too: [GitHub](https://github.com)
+
+## Lists
+
+### Unordered List
+
+- First item
+- Second item
+  - Nested item
+  - Another nested item
+- Third item
+
+### Ordered List
+
+1. First step
+2. Second step
+3. Third step
+
+### Task List
+
+- [x] Completed task
+- [ ] Incomplete task
+- [x] Another completed task
+
+## Code
+
+### Inline Code
+
+Use `const` to declare constants in TypeScript.
+
+### Code Block with Syntax Highlighting
+
+```typescript
+interface User {
+  id: number;
+  name: string;
+  email: string;
+}
+
+function createUser(user: User): void {
+  console.log(`Creating user: ${user.name}`);
+}
+
+const newUser: User = {
+  id: 1,
+  name: "John Doe",
+  email: "john@example.com"
+};
+```
+
+### Python Code Block
+
+```python
+def calculate_sum(numbers: list[int]) -> int:
+    """Calculate the sum of a list of numbers."""
+    return sum(numbers)
+
+result = calculate_sum([1, 2, 3, 4, 5])
+print(f"The sum is: {result}")
+```
+
+## Blockquotes
+
+> This is a blockquote with important information.
+> It can span multiple lines.
+
+> **Note:** Blockquotes can contain other markdown elements like **bold text**.
+
+## Tables
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Headings | ✅ | Proper hierarchy and sizing |
+| Links | ✅ | Primary color with hover underline |
+| Code | ✅ | Syntax highlighting |
+| Lists | ✅ | Proper spacing and markers |
+
+## Horizontal Rule
+
+---
+
+Content after the horizontal rule.
+
+## Combined Elements
+
+You can **combine** multiple *elements* in a single paragraph like [links](/book), `inline code`, and **bold text**.
+
+### Lists with Code
+
+1. First step: Create a `const` variable
+2. Second step: Add some **logic**
+3. Third step: Test the code
+
+```javascript
+const greeting = "Hello, World!";
+console.log(greeting);
+```
+
+## Conclusion
+
+All markdown features are rendering correctly! 🎉
+
+Test checklist:
+- ✅ Headings have proper sizes
+- ✅ Text formatting works
+- ✅ Links are styled
+- ✅ Paragraphs have proper spacing
+- ✅ Lists are formatted
+- ✅ Code blocks are highlighted
+- ✅ Blockquotes have borders
+- ✅ Tables are styled
+- ✅ Horizontal rules display

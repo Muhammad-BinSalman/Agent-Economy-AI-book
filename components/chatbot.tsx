@@ -3,7 +3,19 @@
 import { useState, useRef, useEffect } from "react";
 import { MessageCircle, X, Send, Bot, User } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { sendChatMessage, type Citation } from "@/lib/chat-api";
+import {
+  sendChatMessage,
+  streamChatMessage,
+  type Citation,
+  type ChatStreamEvent,
+} from "@/lib/chat-api";
+ import {
+   Conversation,
+   ConversationContent,
+   ConversationEmptyState,
+   ConversationScrollButton,
+ } from "@/components/ui/conversation";
+ import { Orb } from "@/components/ui/orb";
 
 interface Message {
   id: string;
@@ -47,25 +59,72 @@ export function Chatbot() {
     setError(null);
     setIsLoading(true);
 
+    const assistantId = (Date.now() + 1).toString();
+    const assistantMessage: Message = {
+      id: assistantId,
+      role: "assistant",
+      content: "",
+      citations: [],
+      timestamp: new Date(),
+    };
+
+    setMessages((prev) => [...prev, assistantMessage]);
+
     try {
-      // Call API
-      const response = await sendChatMessage({
-        query: trimmedInput,
-        mode: "full_book",
-      });
+      await streamChatMessage(
+        {
+          query: trimmedInput,
+          mode: "full_book",
+        },
+        (event: ChatStreamEvent) => {
+          if (event.type === "delta") {
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantId ? { ...m, content: m.content + event.delta } : m
+              )
+            );
+            return;
+          }
 
-      // Add assistant message
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: response.answer,
-        citations: response.citations,
-        timestamp: new Date(),
-      };
+          if (event.type === "final") {
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantId
+                  ? {
+                      ...m,
+                      citations: event.citations,
+                    }
+                  : m
+              )
+            );
+            return;
+          }
 
-      setMessages((prev) => [...prev, assistantMessage]);
+          if (event.type === "error") {
+            throw new Error(event.message);
+          }
+        }
+      );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to send message");
+      try {
+        const response = await sendChatMessage({
+          query: trimmedInput,
+          mode: "full_book",
+        });
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantId
+              ? { ...m, content: response.answer, citations: response.citations }
+              : m
+          )
+        );
+      } catch (fallbackErr) {
+        setError(
+          fallbackErr instanceof Error
+            ? fallbackErr.message
+            : "Failed to send message"
+        );
+      }
     } finally {
       setIsLoading(false);
       // Focus input after response
@@ -81,26 +140,22 @@ export function Chatbot() {
       handleSend();
     }
   };
-  console.log(messages[1]?.citations, "MESSAGE")
   return (
     <>
       {/* Floating Action Button */}
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className={cn(
-            "fixed bottom-6 right-6 z-50",
-            "flex items-center justify-center",
-            "w-14 h-14 rounded-full",
-            "bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500",
-            "text-white shadow-2xl",
-            "hover:scale-110 active:scale-95",
-            "transition-all duration-200",
-            "animate-gradient"
-          )}
+          className="fixed bottom-6 right-5 z-50 flex h-10 items-center gap-2 rounded-full bg-gradient-to-r from-stone-200 to-gray-300 linear-gradient px-4 text-white shadow-2xl transition-all duration-200 hover:scale-110 hover:bg-primary-olive/90 sm:h-12 sm:px-4"
           aria-label="Open chat"
         >
-          <MessageCircle className="w-6 h-6" />
+          <Orb
+            className="h-[35px] w-[35px]"
+            colors={["#a855f7", "#f97316"]}
+            agentState={null}
+            resizeDebounce={2000}
+          />
+          <span className="font-semibold text-sm text-black">Ask AI</span>
         </button>
       )}
 
@@ -110,175 +165,172 @@ export function Chatbot() {
           className={cn(
             "fixed bottom-6 right-6 z-50",
             "w-full max-w-md h-[600px] max-h-[calc(100vh-3rem)]",
-            "flex flex-col rounded-2xl shadow-2xl",
-            "glass glass-dark",
-            "border border-border",
+            "flex flex-col",
             "animate-in slide-in-from-bottom-10 fade-in duration-300"
           )}
         >
-          {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-border">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 animate-gradient">
-                <Bot className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-foreground">AI Assistant</h3>
-                <p className="text-xs text-muted-foreground">Ask about the book</p>
-              </div>
-            </div>
-            <button
-              onClick={() => setIsOpen(false)}
-              className="p-2 rounded-lg hover:bg-accent transition-colors"
-              aria-label="Close chat"
-            >
-              <X className="w-5 h-5 text-foreground" />
-            </button>
-          </div>
-
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {messages.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-center">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 animate-gradient flex items-center justify-center mb-4">
-                  <Bot className="w-8 h-8 text-white" />
+          <Conversation className="h-full shadow-2xl glass glass-dark">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3">
+              <div className="flex items-center gap-3">
+                <Orb
+                  className="h-9 w-9"
+                  colors={["#a855f7", "#f97316"]}
+                  agentState={isLoading ? "thinking" : null}
+                />
+                <div className="leading-tight">
+                  <h3 className="text-sm font-semibold">AI Assistant</h3>
+                  <p className="text-xs text-muted-foreground">Ask about the book</p>
                 </div>
-                <h4 className="font-semibold text-lg mb-2">Welcome to AI Assistant</h4>
-                <p className="text-sm text-muted-foreground max-w-xs">
-                  Ask me anything about the AI-Native Book. I'm here to help you understand the content.
-                </p>
               </div>
-            ) : (
-              messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={cn(
-                    "flex gap-3",
-                    message.role === "user" ? "flex-row-reverse" : "flex-row"
-                  )}
-                >
+              <button
+                onClick={() => setIsOpen(false)}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-md hover:bg-accent transition-colors"
+                aria-label="Close chat"
+              >
+                <X className="h-4 w-4 text-foreground" />
+              </button>
+            </div>
+
+            <ConversationContent className="space-y-4">
+              {messages.length === 0 ? (
+                <ConversationEmptyState
+                  title="Welcome To AI Native Book"
+                  description="Ask me anything about the AI-Native Book to get started."
+                />
+              ) : (
+                messages.map((message) => (
                   <div
+                    key={message.id}
                     className={cn(
-                      "flex items-center justify-center w-8 h-8 rounded-full flex-shrink-0",
-                      message.role === "user"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 animate-gradient text-white"
+                      "flex w-full gap-3",
+                      message.role === "user" ? "flex-row-reverse" : "flex-row"
                     )}
                   >
                     {message.role === "user" ? (
-                      <User className="w-4 h-4" />
+                      <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground flex-shrink-0">
+                        <User className="h-4 w-4" />
+                      </div>
                     ) : (
-                      <Bot className="w-4 h-4" />
+                      <Orb className="mt-0.5 h-8 w-8 flex-shrink-0" colors={["#a855f7", "#f97316"]} />
                     )}
-                  </div>
-                  <div
-                    className={cn(
-                      "flex flex-col gap-1 max-w-[80%]",
-                      message.role === "user" ? "items-end" : "items-start"
-                    )}
-                  >
+
                     <div
                       className={cn(
-                        "px-4 py-2 rounded-2xl",
-                        message.role === "user"
-                          ? "bg-primary text-primary-foreground rounded-br-sm"
-                          : "bg-muted text-foreground rounded-bl-sm"
+                        "flex min-w-0 flex-col gap-1",
+                        message.role === "user" ? "items-end" : "items-start"
                       )}
                     >
-                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                    </div>
-                    {message.citations && message.citations.length > 0 && (
-                      <div className="px-3 py-2 bg-accent/50 rounded-lg mt-1">
-                        <p className="text-xs font-semibold mb-1">Sources:</p>
-                        {message.citations.slice(0, 2).map((citation, idx) => (
-                          <p key={idx} className="text-xs text-muted-foreground truncate">
-                            {citation.chapter && `${citation.chapter} • `} Relevance:{" "}
-                            {Math.round(citation.score * 100)}%
-                          </p>
-                        ))}
-                        {message.citations.length > 2 && (
-                          <p className="text-xs text-muted-foreground">
-                            +{message.citations.length - 2} more sources
-                          </p>
+                      <div
+                        className={cn(
+                          "max-w-[85%] rounded-2xl px-4 py-2 text-sm leading-relaxed whitespace-pre-wrap",
+                          message.role === "user"
+                            ? "bg-primary text-primary-foreground rounded-br-sm"
+                            : "bg-muted text-foreground rounded-bl-sm"
                         )}
+                      >
+                        {message.content}
                       </div>
-                    )}
-                    <span className="text-xs text-muted-foreground">
-                      {message.timestamp.toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </span>
-                  </div>
-                </div>
-              ))
-            )}
-            {isLoading && (
-              <div className="flex gap-3">
-                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 animate-gradient flex-shrink-0">
-                  <Bot className="w-4 h-4 text-white" />
-                </div>
-                <div className="px-4 py-3 bg-muted rounded-2xl rounded-bl-sm">
-                  <div className="flex gap-1">
-                    <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" />
-                    <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce delay-100" />
-                    <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce delay-200" />
-                  </div>
-                </div>
-              </div>
-            )}
-            {error && (
-              <div className="px-4 py-3 bg-destructive/10 text-destructive rounded-2xl text-sm">
-                {error}
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
 
-          {/* Input */}
-          <div className="p-4 border-t border-border">
-            <div className="flex gap-2">
-              <textarea
-                ref={inputRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Type your question..."
-                rows={1}
-                className={cn(
-                  "flex-1 px-4 py-3 rounded-xl",
-                  "bg-background border border-input",
-                  "text-sm text-foreground placeholder:text-muted-foreground",
-                  "focus:outline-none focus:ring-2 focus:ring-ring",
-                  "resize-none overflow-hidden",
-                  "transition-all"
-                )}
-                style={{
-                  minHeight: "44px",
-                  maxHeight: "120px",
-                }}
-                disabled={isLoading}
-              />
-              <button
-                onClick={handleSend}
-                disabled={!input.trim() || isLoading}
-                className={cn(
-                  "px-4 py-3 rounded-xl",
-                  "bg-primary text-primary-foreground",
-                  "hover:opacity-90 active:opacity-80",
-                  "disabled:opacity-50 disabled:cursor-not-allowed",
-                  "transition-all",
-                  "flex items-center justify-center"
-                )}
-                aria-label="Send message"
-              >
-                <Send className="w-4 h-4" />
-              </button>
+                      {message.citations && message.citations.length > 0 && (
+                        <div className="max-w-[85%] rounded-xl border border-border/60 bg-background/50 px-3 py-2">
+                          <p className="text-xs font-semibold text-foreground">Sources</p>
+                          <div className="mt-1 space-y-0.5">
+                            {message.citations.slice(0, 2).map((citation, idx) => (
+                              <p key={idx} className="text-xs text-muted-foreground truncate">
+                                {citation.chapter && `${citation.chapter} • `}Relevance:{" "}
+                                {Math.round(citation.score * 100)}%
+                              </p>
+                            ))}
+                            {message.citations.length > 2 && (
+                              <p className="text-xs text-muted-foreground">
+                                +{message.citations.length - 2} more sources
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      <span className="text-[11px] text-muted-foreground">
+                        {message.timestamp.toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+
+              {isLoading && (
+                <div className="flex w-full gap-3">
+                  <Orb
+                    className="mt-0.5 h-8 w-8 flex-shrink-0"
+                    colors={["#a855f7", "#f97316"]}
+                    agentState="thinking"
+                  />
+                  <div className="rounded-2xl rounded-bl-sm bg-muted px-4 py-3">
+                    <div className="flex gap-1">
+                      <div className="h-2 w-2 rounded-full bg-muted-foreground animate-bounce" />
+                      <div className="h-2 w-2 rounded-full bg-muted-foreground animate-bounce delay-100" />
+                      <div className="h-2 w-2 rounded-full bg-muted-foreground animate-bounce delay-200" />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {error && (
+                <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                  {error}
+                </div>
+              )}
+
+              <div ref={messagesEndRef} />
+
+              <ConversationScrollButton />
+            </ConversationContent>
+
+            <div className="border-t border-border bg-background/40 p-3">
+              <div className="flex items-end gap-2">
+                <textarea
+                  ref={inputRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Type your question..."
+                  rows={1}
+                  className={cn(
+                    "flex-1 rounded-xl border border-input bg-background px-4 py-3",
+                    "text-sm text-foreground placeholder:text-muted-foreground",
+                    "focus:outline-none focus:ring-2 focus:ring-ring",
+                    "resize-none overflow-y-auto",
+                    "transition-all"
+                  )}
+                  style={{
+                    minHeight: "44px",
+                    maxHeight: "140px",
+                  }}
+                  disabled={isLoading}
+                />
+                <button
+                  onClick={handleSend}
+                  disabled={!input.trim() || isLoading}
+                  className={cn(
+                    "inline-flex h-[44px] w-[44px] items-center justify-center rounded-xl",
+                    "bg-primary text-primary-foreground",
+                    "hover:opacity-90 active:opacity-80",
+                    "disabled:opacity-50 disabled:cursor-not-allowed",
+                    "transition-all"
+                  )}
+                  aria-label="Send message"
+                >
+                  <Send className="h-4 w-4" />
+                </button>
+              </div>
+              <p className="mt-2 text-center text-xs text-muted-foreground">
+                Press Enter to send, Shift + Enter for new line
+              </p>
             </div>
-            <p className="text-xs text-muted-foreground mt-2 text-center">
-              Press Enter to send, Shift + Enter for new line
-            </p>
-          </div>
+          </Conversation>
         </div>
       )}
     </>

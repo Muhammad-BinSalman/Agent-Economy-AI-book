@@ -3,9 +3,11 @@ Chat API endpoints.
 
 Provides REST API for RAG and simple chat.
 """
+import asyncio
+import json
 import time
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 
 from app.models.chat import ChatRequest, ChatResponse, Citation
 from app.services.cohere_service import cohere_service
@@ -253,3 +255,51 @@ async def chat_unified(request: ChatRequest):
     Routes to RAG chat with book content retrieval.
     """
     return await rag_chat(request)
+
+
+@router.post("/stream")
+async def chat_stream(request: ChatRequest):
+    """Stream chat response as Server-Sent Events (SSE).
+
+    This endpoint does NOT change the existing JSON contract at `/api/v1/chat`.
+    It emits incremental `delta` events followed by a final `final` event
+    containing citations and metadata.
+
+    Note: the underlying model call is currently non-streaming; this endpoint
+    simulates streaming by chunking the final answer.
+    """
+
+    async def event_generator():
+        start_time = time.time()
+        try:
+            response: ChatResponse = await rag_chat(request)
+
+            answer = response.answer or ""
+            chunk_size = 24
+            for i in range(0, len(answer), chunk_size):
+                delta = answer[i : i + chunk_size]
+                payload = {"type": "delta", "delta": delta}
+                yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+                await asyncio.sleep(0)
+
+            final_payload = {
+                "type": "final",
+                "citations": [c.model_dump() for c in response.citations],
+                "mode": response.mode,
+                "chunks_retrieved": response.chunks_retrieved,
+                "latency_ms": (time.time() - start_time) * 1000,
+                "model_used": response.model_used,
+            }
+            yield f"data: {json.dumps(final_payload, ensure_ascii=False)}\n\n"
+        except Exception as e:
+            err_payload = {"type": "error", "message": str(e)}
+            yield f"data: {json.dumps(err_payload, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        },
+    )
