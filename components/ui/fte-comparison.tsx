@@ -138,10 +138,8 @@ const FTEComparison = () => {
                 Learn the technical blueprints for building Digital FTEs in <span className="text-red-600 font-bold">Chapter 08: The Multi-Agent Organization.</span>
               </p>
             </div>
-            <Link href="/chapter-08">
-              <button className="whitespace-nowrap h-10 px-6 rounded-full bg-zinc-900 text-white text-xs font-bold uppercase tracking-widest hover:bg-red-600 transition-colors">
-                Start Reading
-              </button>
+            <Link href="/book/chapter-8" className="whitespace-nowrap h-10 px-6 rounded-full bg-zinc-900 text-white text-xs font-bold uppercase tracking-widest hover:bg-red-600 transition-colors flex items-center">
+              Start Reading
             </Link>
           </div>
         </div>

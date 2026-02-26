@@ -72,7 +72,7 @@ async function processMarkdown(content: string) {
 }
 
 function parseFrontmatter(content: string) {
-  const frontmatterRegex = /^---\n([\s\S]*?)\n---/;
+  const frontmatterRegex = /^---\r?\n([\s\S]*?)\r?\n---\r?\n/;
   const match = content.match(frontmatterRegex);
 
   if (!match) {
@@ -80,10 +80,11 @@ function parseFrontmatter(content: string) {
   }
 
   const frontmatterText = match[1];
+  // Remove the frontmatter block including the closing --- and following newlines
   const contentWithoutFrontmatter = content.replace(frontmatterRegex, "");
 
   const frontmatter: Record<string, string | number> = {};
-  const lines = frontmatterText.split("\n");
+  const lines = frontmatterText.split(/\r?\n/);
 
   lines.forEach((line) => {
     const colonIndex = line.indexOf(":");

@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -23,8 +24,8 @@ const defaultNavItems: NavItem[] = [
   { id: 'about', label: 'About', href: '/about' },
   { id: 'agents', label: 'Agents', href: '/agents' },
   { id: 'contact', label: 'Contact', href: '/contact' },
-  { id: 'authors', label: 'Authors', href: '/authors' },
-  { id: 'repo', label: 'Repository', href: '/repo' },
+  { id: 'authors', label: 'Author', href: '/author' },
+  { id: 'repo', label: 'Repository', href: 'https://github.com/Muhammad-BinSalman/Agent-Economy-AI-book' },
 ];
 
 export function Navigation({
@@ -64,9 +65,9 @@ export function Navigation({
           /* ── Compact pill layout ── */
           <>
             {/* Logo */}
-            <a href="/" className="flex items-center gap-1.5 group shrink-0">
-              <img src={scrolled ? "/del.png" : "/logo.png"} alt="Logo" className="h-7 w-auto" />
-            </a>
+            <Link href="/" className="flex items-center gap-1.5 group shrink-0">
+              <Image src={scrolled ? "/del.png" : "/logo.png"} alt="Logo" className="h-7 w-auto" width={100} height={100}/>
+            </Link>
 
             {/* Divider */}
             <div className="w-px h-5 bg-zinc-200 shrink-0" />
@@ -74,45 +75,47 @@ export function Navigation({
             {/* Nav links condensed */}
             <nav className="flex items-center gap-0.5">
               {navItems.map((item) => (
-                <a
+                <Link
                   key={item.id}
                   href={item.href || "#"}
-                  onClick={item.onClick}
                   className="py-1 px-2.5 rounded-full text-xs font-medium text-zinc-500 hover:text-red-600 hover:bg-red-50 transition-all whitespace-nowrap"
                 >
                   {item.label}
-                </a>
+                </Link>
               ))}
             </nav>
 
             {/* CTA button */}
             <div className="w-px h-5 bg-zinc-200 shrink-0" />
-            <a
+            <Link
               href="/book"
               className="shrink-0 py-1.5 px-3.5 rounded-full bg-red-600 text-white text-xs font-bold hover:bg-red-700 transition-all shadow shadow-red-600/20"
             >
               Read Now
-            </a>
+            </Link>
           </>
         ) : (
           /* ── Full-width layout ── */
           <div className="w-full mx-auto px-4 py-5 flex flex-col md:flex-row items-center justify-between gap-4">
             <Link href="/" className="flex items-center gap-2 group cursor-pointer">
-              <img src="/logo.png" alt="Logo" className="h-8 w-auto" />
+              <Image src="/logo.png" alt="Logo" className="h-8 w-auto" width={100} height={100} />
               <span className="text-xl font-bold tracking-tighter font-outfit uppercase bg-clip-text text-transparent bg-gradient-to-r from-red-600 to-zinc-900">
                 {logoText}
+              </span>
+              <span className="rounded-full border border-zinc-300/80 bg-white/70 px-1.5 py-0.5 text-[9px] font-semibold tracking-wide text-zinc-700">
+                BETA
               </span>
             </Link>
             <nav className="flex flex-wrap justify-center gap-1">
               {navItems.map((item) => (
-                <a
+                <Link
                   key={item.id}
                   href={item.href || "#"}
                   onClick={item.onClick}
                   className="py-1.5 px-3 rounded-full text-sm font-medium text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-all"
                 >
                   {item.label}
-                </a>
+                </Link>
               ))}
             </nav>
           </div>

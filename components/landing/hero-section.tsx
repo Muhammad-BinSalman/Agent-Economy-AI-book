@@ -2,6 +2,8 @@
 import { useCallback, useEffect, useRef } from "react";
 import Grainient from "../Grainient";
 import LogoCloud from "./hero-caroasel";
+import { ArrowRight } from "lucide-react";
+import Link from "next/link";
 
 export interface NavItem {
   id: string;
@@ -18,7 +20,6 @@ interface HeroProps {
   buttonText?: string;
   onButtonClick?: () => void;
   secondaryButtonText?: string;
-  secondaryButtonHref?: string;
   imageUrl?: string;
   videoUrl?: string;
   bookTitle?: string;
@@ -47,7 +48,6 @@ const HeroSection: React.FC<HeroProps> = ({
   buttonText = "Get Started",
   onButtonClick,
   secondaryButtonText,
-  secondaryButtonHref,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const targetRef = useRef<HTMLButtonElement>(null);
@@ -184,7 +184,7 @@ const HeroSection: React.FC<HeroProps> = ({
         <div className="max-w-4xl mx-auto">
           <div className="mb-6 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-sm text-xs font-mono font-bold text-white border border-white/30 shadow-sm">
             <span className="w-2 h-2 rounded-full bg-white animate-pulse"></span>
-            V1.0 AI-NATIVE EDITION
+            V1.0 BETA AI-NATIVE EDITION
           </div>
           <h1 className="text-5xl sm:text-6xl lg:text-8xl font-black tracking-tight font-outfit leading-[0.95] mb-6 text-white drop-shadow-lg">
             {heading}
@@ -200,20 +200,21 @@ const HeroSection: React.FC<HeroProps> = ({
         </div>
 
         <div className="flex flex-col sm:flex-row gap-4 items-center justify-center mb-16">
-          <button
-            ref={targetRef}
-            onClick={onButtonClick}
-            className="h-14 px-10 rounded-full bg-white text-red-600 font-bold hover:bg-red-50 transition-all shadow-xl shadow-black/20 active:scale-95 text-lg"
+          <Link
+            href={"/book/preface"}
+            className="h-14 px-10 rounded-full bg-white text-red-600 flex items-center justify-center font-bold hover:bg-red-50 transition-all shadow-xl shadow-black/20 active:scale-95 text-lg"
           >
             {buttonText}
-          </button>
+            <ArrowRight className="ml-2 h-5 w-5" />
+          </Link>
           {secondaryButtonText && (
-            <a
-              href={secondaryButtonHref}
+            <Link
+              target="_blank"
+              href={"https://github.com/Muhammad-BinSalman/Agent-Economy-AI-book"}
               className="h-14 px-10 flex items-center justify-center rounded-full border border-white/40 bg-white/10 backdrop-blur-sm text-white font-bold hover:bg-white/20 transition-all text-lg"
             >
               {secondaryButtonText}
-            </a>
+            </Link>
           )}
         </div>
 

@@ -85,6 +85,7 @@ const curriculumData: TimelineItem[] = [
 ];
 
 export default function RadialOrbitalTimeline() {
+    const [mounted, setMounted] = useState(false);
     const [expandedItems, setExpandedItems] = useState<Record<number, boolean>>({});
     const [rotationAngle, setRotationAngle] = useState<number>(0);
     const [autoRotate, setAutoRotate] = useState<boolean>(true);
@@ -95,6 +96,10 @@ export default function RadialOrbitalTimeline() {
     const nodeRefs = useRef<Record<number, HTMLDivElement | null>>({});
     const rafRef = useRef<number | null>(null);
     const angleRef = useRef<number>(0);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     /* ── smooth rAF-based rotation ── */
     useEffect(() => {
@@ -217,7 +222,9 @@ export default function RadialOrbitalTimeline() {
 
                         {/* ── Orbital nodes ── */}
                         {curriculumData.map((item, index) => {
-                            const position = calculateNodePosition(index, curriculumData.length);
+                            const position = mounted
+                                ? calculateNodePosition(index, curriculumData.length)
+                                : { x: 0, y: 0, zIndex: 0, opacity: 0 };
                             const isExpanded = expandedItems[item.id];
                             const isRelated = isRelatedToActive(item.id);
                             const isPulsing = pulseEffect[item.id];

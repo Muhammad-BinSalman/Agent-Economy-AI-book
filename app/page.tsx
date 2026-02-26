@@ -59,7 +59,6 @@ export default function HomePage() {
           supportingText="Learn how to design, build, and deploy autonomous AI agents that turn knowledge into scalable digital workers."
           buttonText="Start Reading"
           secondaryButtonText="View on GitHub"
-          secondaryButtonHref="https://github.com"
           bookTitle="The AI Agent Economy"
           coverImageUrl={coverImageUrl}
         />
@@ -73,7 +72,7 @@ export default function HomePage() {
           title="Co-Architect the Future"
           description="The AI Agent Economy is a living, open-source publication. We invite researchers, engineers, and architects to contribute their blueprints and push the boundaries of autonomous labor."
           buttonText="Join the Repository"
-          buttonHref="https://github.com"
+          buttonHref="https://github.com/Muhammad-BinSalman/Agent-Economy-AI-book"
           buttonTarget="_blank"
           avatars={avatars}
           orbitRadius={24}

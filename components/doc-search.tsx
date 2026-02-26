@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 
 interface DocSearchProps {
   chapters: Array<{
@@ -10,7 +11,6 @@ interface DocSearchProps {
     title: string;
     content: string;
   }>;
-  onResultClick: (chapterId: string) => void;
   className?: string;
 }
 
@@ -23,7 +23,6 @@ interface SearchResult {
 
 export function DocSearch({
   chapters,
-  onResultClick,
   className,
 }: DocSearchProps) {
   const [query, setQuery] = useState("");
@@ -83,7 +82,6 @@ export function DocSearch({
   }, [query, chapters]);
 
   const handleResultClick = (chapterId: string) => {
-    onResultClick(chapterId);
     setQuery("");
     setIsOpen(false);
   };
@@ -149,10 +147,11 @@ export function DocSearch({
           <div className="absolute z-20 w-full mt-2 bg-background border rounded-lg shadow-lg overflow-hidden">
             <div className="max-h-96 overflow-y-auto">
               {results.map((result) => (
-                <button
+                <Link
                   key={result.chapterId}
+                  href={`/book/${result.chapterId}`}
                   onClick={() => handleResultClick(result.chapterId)}
-                  className="w-full text-left px-4 py-3 hover:bg-accent transition-colors border-b last:border-b-0"
+                  className="w-full text-left px-4 py-3 hover:bg-accent transition-colors border-b last:border-b-0 block"
                 >
                   <div className="font-medium text-sm mb-1">
                     {highlightText(result.title, query)}
@@ -162,7 +161,7 @@ export function DocSearch({
                       {highlightText(result.snippet, query)}
                     </div>
                   )}
-                </button>
+                </Link>
               ))}
             </div>
             <div className="px-4 py-2 bg-muted/50 text-xs text-muted-foreground border-t">
