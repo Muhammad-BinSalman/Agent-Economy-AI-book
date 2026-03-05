@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { MessageCircle, X, Send, Bot, User } from "lucide-react";
+import { X, Send, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   sendChatMessage,
@@ -105,7 +105,7 @@ export function Chatbot() {
           }
         }
       );
-    } catch (err) {
+    } catch (err: unknown) {
       try {
         const response = await sendChatMessage({
           query: trimmedInput,

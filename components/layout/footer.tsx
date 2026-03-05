@@ -25,7 +25,7 @@ export default function Footer() {
                     <div>
                         <h5 className="font-bold text-xs uppercase tracking-widest mb-4 text-zinc-400">Resources</h5>
                         <ul className="space-y-2 text-sm">
-                            <li><a href="/book" className="hover:text-red-600 text-zinc-600">Read Book</a></li>
+                            <li><Link href="/book" className="hover:text-red-600 text-zinc-600">Read Book</Link></li>
                             <li><a href="#" className="hover:text-red-600 text-zinc-600">API Docs</a></li>
                             <li><a href="#" className="hover:text-red-600 text-zinc-600">CLI Tool</a></li>
                             <li><a href="#" className="hover:text-red-600 text-zinc-600">SDKs</a></li>

@@ -13,18 +13,10 @@ interface BookContentProps {
 }
 
 export function BookContent({ chapters }: BookContentProps) {
-  const handleChapterClick = (id: string) => {
-    const element = document.getElementById(id);
-    if (element) {
-      element.scrollIntoView({ behavior: "smooth" });
-    }
-  };
-
   return (
     <ChapterNavigation
       chapters={chapters}
       activeChapter={null}
-      onChapterClick={handleChapterClick}
     />
   );
 }

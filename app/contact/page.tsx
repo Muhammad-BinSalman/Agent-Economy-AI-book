@@ -1,14 +1,14 @@
 import { Metadata } from "next";
-import { Mail, MessageSquare, CheckCircle2 } from "lucide-react";
+import { Mail, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { ContactForm } from "@/components/contact-form";
-import FAQsTwo from "@/components/faqs-2";
+import { XLogo } from "@/components/logos/x-logo";
 import { EmailLogo } from "@/components/logos/email-logo";
+import { WhatsAppLogo } from "@/components/logos/whatsapp-logo";
 import { GitHubLogo } from "@/components/logos/github-logo";
 import { InstagramLogo } from "@/components/logos/instagram-logo";
 import { LinkedInLogo } from "@/components/logos/linkedin-logo";
-import { WhatsAppLogo } from "@/components/logos/whatsapp-logo";
-import { XLogo } from "@/components/logos/x-logo";
+import FAQsTwo from "@/components/faqs-2";
 
 export const metadata: Metadata = {
   title: "Contact | AI-Native Development",

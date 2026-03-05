@@ -1,4 +1,5 @@
 import { motion } from "motion/react";
+import Image from "next/image";
 
 interface BookProps {
     title?: string;
@@ -55,7 +56,9 @@ export const Book = ({
                 >
                     {/* Cover photo — full-bleed */}
                     {coverImage && (
-                        <img
+                        <Image
+                            width={160}
+                            height={275}
                             src={coverImage}
                             alt="Book cover"
                             className="absolute inset-0 w-full h-full object-cover"

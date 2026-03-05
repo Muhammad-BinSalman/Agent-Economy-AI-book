@@ -81,7 +81,7 @@ export function DocSearch({
     setResults(searchResults.slice(0, 5)); // Limit to 5 results
   }, [query, chapters]);
 
-  const handleResultClick = (chapterId: string) => {
+  const handleResultClick = () => {
     setQuery("");
     setIsOpen(false);
   };
@@ -150,7 +150,7 @@ export function DocSearch({
                 <Link
                   key={result.chapterId}
                   href={`/book/${result.chapterId}`}
-                  onClick={() => handleResultClick(result.chapterId)}
+                  onClick={() => handleResultClick()}
                   className="w-full text-left px-4 py-3 hover:bg-accent transition-colors border-b last:border-b-0 block"
                 >
                   <div className="font-medium text-sm mb-1">

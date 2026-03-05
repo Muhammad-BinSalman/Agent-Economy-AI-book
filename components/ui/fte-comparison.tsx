@@ -12,7 +12,7 @@ const ComparisonRow = ({
   attribute: string;
   humanValue: string;
   digitalValue: string;
-  icon: any
+  icon: React.ComponentType<{ size?: number; className?: string }>;
 }) => (
   <div className="grid grid-cols-1 md:grid-cols-12 border-b border-zinc-100 last:border-0 group">
     <div className="md:col-span-4 py-6 pr-4 flex items-center gap-3">

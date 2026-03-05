@@ -1,72 +1,8 @@
 "use client";
 
-import { cn } from "../../lib/utils";
-import { ReactNode, useState } from "react";
+import { useState } from "react";
 import Grainient from "../Grainient";
 
-interface MarqueeProps {
-  children: ReactNode;
-  pauseOnHover?: boolean;
-  reverse?: boolean;
-  className?: string;
-  speed?: number;
-}
-
-function Marquee({
-  children,
-  pauseOnHover = false,
-  reverse = false,
-  className,
-  speed = 40,
-}: MarqueeProps) {
-  return (
-    <div
-      className={cn(
-        "group flex overflow-hidden [--gap:1rem] [gap:var(--gap)]",
-        className
-      )}
-      style={
-        {
-          "--duration": `${speed}s`,
-        } as React.CSSProperties
-      }
-    >
-      <div
-        className={cn(
-          "flex min-w-full shrink-0 items-center justify-around gap-[var(--gap)] animate-marquee",
-          reverse && "[animation-direction:reverse]",
-          pauseOnHover && "group-hover:[animation-play-state:paused]"
-        )}
-      >
-        {children}
-      </div>
-      <div
-        className={cn(
-          "flex min-w-full shrink-0 items-center justify-around gap-[var(--gap)] animate-marquee",
-          reverse && "[animation-direction:reverse]",
-          pauseOnHover && "group-hover:[animation-play-state:paused]"
-        )}
-        aria-hidden="true"
-      >
-        {children}
-      </div>
-    </div>
-  );
-}
-
-const images = [
-  "https://images.unsplash.com/photo-1620712943543-bcc4628c9757?w=400&h=400&fit=crop",
-  "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=400&h=400&fit=crop",
-  "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=400&h=400&fit=crop",
-  "https://images.unsplash.com/photo-1531746790731-6c087fecd05a?w=400&h=400&fit=crop",
-];
-
-const images2 = [
-  "https://images.unsplash.com/photo-1676299081847-824916de030a?w=400&h=400&fit=crop",
-  "https://images.unsplash.com/photo-1555255707-c07966488bd7?w=400&h=400&fit=crop",
-  "https://images.unsplash.com/photo-1664575196079-9ac025813382?w=400&h=400&fit=crop",
-  "https://images.unsplash.com/photo-1614741118887-7a4ee193a5fa?w=400&h=400&fit=crop",
-];
 
 function ScrambleButton({ text = "Read More", onClick }: { text?: string, onClick?: () => void }) {
   const [displayText, setDisplayText] = useState(text);

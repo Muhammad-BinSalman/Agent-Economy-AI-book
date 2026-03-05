@@ -188,8 +188,8 @@ export default function AgentsPage() {
               const items = agents.filter((a) => a.category === category);
               if (items.length === 0) return null;
 
-              const meta = categoryMeta[category];
-              const Icon = meta.icon;
+              const meta = categoryMeta[category as AgentCategory];
+              const Icon = meta.icon as React.ComponentType<{ className?: string; size?: number }>;
 
               return (
                 <section key={category} className="space-y-4">
@@ -197,7 +197,7 @@ export default function AgentsPage() {
                     <div className="flex items-start md:items-center justify-between gap-6 flex-col md:flex-row">
                       <div className="min-w-0">
                         <div className="inline-flex items-center gap-2 rounded-full border bg-background/60 backdrop-blur px-3 py-1 text-xs font-semibold text-muted-foreground">
-                          <Icon className="w-3.5 h-3.5 text-red-600" />
+                          <Icon className={"w-3.5 h-3.5 text-red-600"} />
                           {category}
                         </div>
                         <h2 className="mt-4 text-2xl md:text-3xl font-black tracking-tight">

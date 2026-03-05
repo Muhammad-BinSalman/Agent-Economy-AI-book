@@ -15,7 +15,7 @@ export async function getChapterById(id: string): Promise<Chapter | null> {
   return chapters.find((ch) => ch.id === id) || null;
 }
 
-export function extractTopics(chapter: Chapter): Topic[] {
+export function extractTopics(_chapter: Chapter): Topic[] {
   // This would extract H2 headings from MDX content
   // For now, return empty array as placeholder
   return [];

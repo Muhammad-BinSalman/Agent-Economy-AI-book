@@ -9,8 +9,6 @@ export interface MacbookProProps extends SVGProps<SVGSVGElement> {
 
 export function MacbookPro({
   width = 650,
-  height = 400,
-  src,
   children,
   ...props
 }: MacbookProProps) {
@@ -86,7 +84,7 @@ export function MacbookPro({
         />
       </svg>
       {/* Screen Content Overlay */}
-      <div 
+      <div
         className="absolute overflow-hidden rounded-[4px]"
         style={{
           left: '11.46%',

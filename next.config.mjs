@@ -3,7 +3,20 @@ import rehypeHighlight from 'rehype-highlight'
 import remarkGfm from 'remark-gfm'
 
 /** @type {import('next').NextConfig} */
-const nextConfig = {}
+const nextConfig = {
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'i.pravatar.cc',
+      },
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+      },
+    ],
+  },
+}
 
 const withMDX = createMDX({
   // Append the default MDX options

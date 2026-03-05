@@ -3,7 +3,6 @@
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { Menu, X, BookOpen, ChevronRight } from "lucide-react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 interface Chapter {

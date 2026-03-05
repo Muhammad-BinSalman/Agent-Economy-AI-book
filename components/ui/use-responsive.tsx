@@ -7,27 +7,35 @@ const BREAKPOINTS = {
   XL: 1200
 };
 
-export const useResponsive = (styles: any) => {
-  const [responsiveStyles, setResponsiveStyles] = useState();
+type ResponsiveStyles<T> = {
+  sm?: T;
+  md?: T;
+  lg?: T;
+  xl?: T;
+} | T;
+
+export const useResponsive = <T,>(styles: ResponsiveStyles<T>) => {
+  const [responsiveStyles, setResponsiveStyles] = useState<T | undefined>();
 
   useEffect(() => {
-    const getResponsive = (styles: any) => {
+    const getResponsive = (inputStyles: ResponsiveStyles<T>) => {
       let current;
-      if (typeof styles === "object") {
-        if (styles.sm && window.innerWidth >= BREAKPOINTS.SM) {
-          current = styles.sm;
+      if (typeof inputStyles === "object" && inputStyles !== null) {
+        const stylesObj = inputStyles as { sm?: T; md?: T; lg?: T; xl?: T };
+        if (stylesObj.sm && window.innerWidth >= BREAKPOINTS.SM) {
+          current = stylesObj.sm;
         }
-        if (styles.md && window.innerWidth >= BREAKPOINTS.MD) {
-          current = styles.md;
+        if (stylesObj.md && window.innerWidth >= BREAKPOINTS.MD) {
+          current = stylesObj.md;
         }
-        if (styles.lg && window.innerWidth >= BREAKPOINTS.LG) {
-          current = styles.lg;
+        if (stylesObj.lg && window.innerWidth >= BREAKPOINTS.LG) {
+          current = stylesObj.lg;
         }
-        if (styles.xl && window.innerWidth >= BREAKPOINTS.XL) {
-          current = styles.xl;
+        if (stylesObj.xl && window.innerWidth >= BREAKPOINTS.XL) {
+          current = stylesObj.xl;
         }
       } else {
-        current = styles;
+        current = inputStyles as T;
       }
       return current;
     };
@@ -43,7 +51,7 @@ export const useResponsive = (styles: any) => {
     return () => {
       window.removeEventListener("resize", listener);
     };
-  }, [JSON.stringify(styles)]);
+  }, [styles]);
 
   return responsiveStyles;
 };

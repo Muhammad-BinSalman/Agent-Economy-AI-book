@@ -17,38 +17,9 @@ const avatars = [
   { src: 'https://i.pravatar.cc/150?img=53', alt: 'Contributor 6' },
   { src: 'https://i.pravatar.cc/150?img=59', alt: 'Contributor 7' },
   { src: 'https://i.pravatar.cc/150?img=68', alt: 'Contributor 8' },
-];
-
+]
 
 export default function HomePage() {
-  // All 5 chapters now displayed
-  const chapters = [
-    {
-      title: "Chapter 1: Introduction to AI-Native Development",
-      description: "Learn the fundamentals of building AI-native applications",
-      order: 1,
-    },
-    {
-      title: "Chapter 2: Core Concepts",
-      description: "Understand the key principles and patterns",
-      order: 2,
-    },
-    {
-      title: "Chapter 3: Implementation Strategies",
-      description: "Practical approaches to building AI-native apps",
-      order: 3,
-    },
-    {
-      title: "Chapter 4: Advanced Patterns",
-      description: "Production-ready techniques for AI applications",
-      order: 4,
-    },
-    {
-      title: "Chapter 5: Future Directions",
-      description: "Emerging trends and preparing for what's next",
-      order: 5,
-    },
-  ];
   const coverImageUrl = "https://images.unsplash.com/photo-1551269901-5c5e14c25df7?auto=format&fit=crop&q=80&w=800";
   return (
     <>

@@ -18,7 +18,6 @@ interface HeroProps {
   tagline?: string;
   supportingText?: string;
   buttonText?: string;
-  onButtonClick?: () => void;
   secondaryButtonText?: string;
   imageUrl?: string;
   videoUrl?: string;
@@ -46,7 +45,6 @@ const HeroSection: React.FC<HeroProps> = ({
   tagline = "A visionary guide to agentic architecture.",
   supportingText,
   buttonText = "Get Started",
-  onButtonClick,
   secondaryButtonText,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);

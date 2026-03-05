@@ -76,7 +76,7 @@ export const waitlistStorage = {
 
       localStorage.setItem(WAITLIST_KEY, JSON.stringify(entries));
       return { success: true };
-    } catch (error) {
+    } catch {
       return { success: false, error: "Failed to save email" };
     }
   },

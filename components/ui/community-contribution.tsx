@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { cn } from '../../lib/utils';
 import { Button, type ButtonProps } from './button';
+import Image from 'next/image';
 
 // Helper component to inject the required CSS animations into the document head
 const Styles = () => {
@@ -126,7 +127,9 @@ export const OrbitingAvatarsCTA = ({
                   style={{ animationDelay: `-${i * 1.2}s` }}
                 >
                   <div className="h-full w-full rounded-full border-2 border-white shadow-xl overflow-hidden bg-zinc-100">
-                    <img
+                    <Image
+                      width={150}
+                      height={150}
                       src={avatar.src}
                       alt={avatar.alt}
                       className="h-full w-full animate-counter-orbit object-cover"
