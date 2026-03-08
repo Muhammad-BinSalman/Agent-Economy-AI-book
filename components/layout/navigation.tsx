@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { Menu, X } from "lucide-react";
 
 export interface NavItem {
   id: string;
@@ -34,6 +35,7 @@ export function Navigation({
   className,
 }: NavigationProps) {
   const [scrolled, setScrolled] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 9);
@@ -58,7 +60,7 @@ export function Navigation({
             ? // ── Pill state ──────────────────────────────────────────────
             "flex items-center gap-3  py-2  bg-white/80 backdrop-blur-xl border border-zinc-200/80 shadow-lg shadow-black/10 px-3"
             : // ── Full-width state ────────────────────────────────────────
-            " bg-white py-2"
+            " bg-white sm:py-2"
         )}
       >
         {scrolled ? (
@@ -66,19 +68,19 @@ export function Navigation({
           <>
             {/* Logo */}
             <Link href="/" className="flex items-center gap-1.5 group shrink-0">
-              <Image src={scrolled ? "/del.png" : "/logo.png"} alt="Logo" className="h-7 w-auto" width={100} height={100}/>
+              <Image src={scrolled ? "/del.png" : "/logo.png"} alt="Logo" className="h-7 w-auto" width={100} height={100} />
             </Link>
 
             {/* Divider */}
-            <div className="w-px h-5 bg-zinc-200 shrink-0" />
+            <div className="hidden md:block w-px h-5 bg-zinc-200 shrink-0" />
 
             {/* Nav links condensed */}
-            <nav className="flex items-center gap-0.5">
+            <nav className="hidden md:flex items-center gap-0.5 flex-nowrap">
               {navItems.map((item) => (
                 <Link
                   key={item.id}
                   href={item.href || "#"}
-                  className="py-1 px-2.5 rounded-full text-xs font-medium text-zinc-500 hover:text-red-600 hover:bg-red-50 transition-all whitespace-nowrap"
+                  className="shrink-0 py-1 px-2.5 rounded-full text-xs font-medium text-zinc-500 hover:text-red-600 hover:bg-red-50 transition-all whitespace-nowrap"
                 >
                   {item.label}
                 </Link>
@@ -86,17 +88,26 @@ export function Navigation({
             </nav>
 
             {/* CTA button */}
-            <div className="w-px h-5 bg-zinc-200 shrink-0" />
+            <div className="hidden md:block w-px h-5 bg-zinc-200 shrink-0" />
             <Link
               href="/book"
-              className="shrink-0 py-1.5 px-3.5 rounded-full bg-red-600 text-white text-xs font-bold hover:bg-red-700 transition-all shadow shadow-red-600/20"
+              className="hidden md:inline-flex shrink-0 py-1.5 px-3.5 rounded-full bg-red-600 text-white text-xs font-bold hover:bg-red-700 transition-all shadow shadow-red-600/20"
             >
               Read Now
             </Link>
+
+            {/* Mobile Menu Toggle */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden p-1 text-zinc-600 hover:bg-zinc-100 rounded-md transition-colors"
+              aria-label="Toggle mobile menu"
+            >
+              {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+            </button>
           </>
         ) : (
           /* ── Full-width layout ── */
-          <div className="w-full mx-auto px-4 py-5 flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="w-full mx-auto px-4 py-5 flex items-center justify-between gap-4">
             <Link href="/" className="flex items-center gap-2 group cursor-pointer">
               <Image src="/logo.png" alt="Logo" className="h-8 w-auto" width={100} height={100} />
               <span className="text-xl font-bold tracking-tighter font-outfit uppercase bg-clip-text text-transparent bg-gradient-to-r from-red-600 to-zinc-900">
@@ -106,21 +117,56 @@ export function Navigation({
                 BETA
               </span>
             </Link>
-            <nav className="flex flex-wrap justify-center gap-1">
+            <nav className="hidden md:flex flex-nowrap justify-center gap-1">
               {navItems.map((item) => (
                 <Link
                   key={item.id}
                   href={item.href || "#"}
                   onClick={item.onClick}
-                  className="py-1.5 px-3 rounded-full text-sm font-medium text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-all"
+                  className="shrink-0 py-1.5 px-3 rounded-full text-sm font-medium text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-all whitespace-nowrap"
                 >
                   {item.label}
                 </Link>
               ))}
             </nav>
+
+            {/* Mobile Menu Toggle */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden p-2 text-zinc-600 hover:bg-zinc-100 rounded-md transition-colors ml-auto lg:m-0"
+              aria-label="Toggle mobile menu"
+            >
+              {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
           </div>
         )}
       </header>
+
+      {/* Mobile Nav Dropdown */}
+      {mobileMenuOpen && (
+        <div className="absolute top-full left-0 w-full bg-white/95 backdrop-blur-xl border-b border-zinc-200 shadow-xl p-4 flex flex-col gap-2 md:hidden pointer-events-auto mt-2">
+          {navItems.map((item) => (
+            <Link
+              key={item.id}
+              href={item.href || "#"}
+              onClick={() => {
+                setMobileMenuOpen(false);
+                item.onClick?.();
+              }}
+              className="py-3 px-4 rounded-lg text-sm font-medium text-zinc-600 hover:text-red-600 hover:bg-red-50 transition-all"
+            >
+              {item.label}
+            </Link>
+          ))}
+          <Link
+            href="/book"
+            onClick={() => setMobileMenuOpen(false)}
+            className="mt-2 py-3 px-4 rounded-lg bg-red-600 text-white text-sm font-bold hover:bg-red-700 transition-all text-center shadow-md shadow-red-600/20"
+          >
+            Read Now
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

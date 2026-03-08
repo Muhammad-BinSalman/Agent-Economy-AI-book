@@ -146,7 +146,7 @@ export function Chatbot() {
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-5 z-50 flex h-10 items-center gap-2 rounded-full bg-gradient-to-r from-stone-200 to-gray-300 linear-gradient px-4 text-white shadow-2xl transition-all duration-200 hover:scale-110 hover:bg-primary-olive/90 sm:h-12 sm:px-4"
+          className="fixed bottom-6 right-5 z-50 flex h-11 px-2 items-center gap-2 rounded-full bg-gradient-to-r from-stone-200 to-gray-300 linear-gradient text-white shadow-2xl transition-all duration-200 hover:scale-110 hover:bg-primary-olive/90 sm:h-12 sm:px-4"
           aria-label="Open chat"
         >
           <Orb

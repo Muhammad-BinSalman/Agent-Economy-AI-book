@@ -37,7 +37,7 @@ export function ChapterNavigation({
       <>
         <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="lg:hidden fixed bottom-6 right-6 z-50 p-4 bg-primary text-primary-foreground rounded-full shadow-lg hover:scale-110 transition-transform"
+          className="lg:hidden fixed bottom-6 left-6 z-50 p-4 bg-primary text-primary-foreground rounded-full shadow-lg hover:scale-110 transition-transform"
           aria-label="Toggle chapter menu"
         >
           {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
@@ -49,7 +49,7 @@ export function ChapterNavigation({
               className="absolute inset-0 bg-black/50 backdrop-blur-sm"
               onClick={() => setIsMobileMenuOpen(false)}
             />
-            <nav className="absolute right-0 top-0 bottom-0 w-80 bg-background border-l shadow-xl overflow-y-auto">
+            <nav className="absolute right-0 top-0 bottom-0 w-full sm:w-80 max-w-[85vw] bg-background border-l shadow-xl overflow-y-auto">
               <div className="p-6">
                 <div className="flex items-center justify-between mb-6">
                   <div className="flex items-center gap-2">

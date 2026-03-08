@@ -93,7 +93,7 @@ function parseFrontmatter(content: string) {
       let value: string | number = line.slice(colonIndex + 1).trim();
 
       if ((value.startsWith('"') && value.endsWith('"')) ||
-          (value.startsWith("'") && value.endsWith("'"))) {
+        (value.startsWith("'") && value.endsWith("'"))) {
         value = value.slice(1, -1);
       }
 
@@ -167,8 +167,8 @@ export default async function ChapterPage({
         activeChapter={slug}
         variant="mobile"
       />
-      <div className="container mx-auto px-4 py-24">
-        <div className="flex gap-8 lg:gap-12">
+      <div className="container mx-auto px-4 py-8 md:py-12 lg:py-24">
+        <div className="flex gap-4 md:gap-8 lg:gap-12">
           {/* Desktop Sidebar */}
           <aside className="hidden lg:block w-72 flex-shrink-0">
             <div className="sticky top-24 space-y-6">
@@ -208,7 +208,7 @@ export default async function ChapterPage({
               <article className="mb-16">
                 {/* Chapter Header */}
                 <div className="mb-8 pb-6 border-b">
-                  <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-foreground mb-4">
+                  <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-foreground mb-4 leading-tight">
                     {chapter.title}
                   </h1>
                   {chapter.readTime && (
@@ -240,7 +240,8 @@ export default async function ChapterPage({
                     prose-headings:scroll-mt-24
                     prose-headings:text-foreground
                     prose-headings:tracking-tight
-                    prose-h1:text-4xl
+                    prose-h1:text-3xl
+                    sm:prose-h1:text-4xl
                     md:prose-h1:text-5xl
                     lg:prose-h1:text-6xl
                     prose-h1:mb-8
@@ -248,15 +249,15 @@ export default async function ChapterPage({
                     prose-h1:pb-6
                     prose-h1:border-b-2
                     prose-h1:border-primary/20
-                    prose-h2:text-3xl
-                    md:prose-h2:text-4xl
+                    prose-h2:text-2xl
+                    sm:prose-h2:text-3xl
                     prose-h2:mt-16
                     prose-h2:mb-8
                     prose-h2:font-black
                     prose-h2:text-primary
                     prose-h2:tracking-tight
-                    prose-h3:text-2xl
-                    md:prose-h3:text-3xl
+                    prose-h3:text-xl
+                    sm:prose-h3:text-2xl
                     prose-h3:mt-12
                     prose-h3:mb-6
                     prose-h3:font-bold
@@ -341,42 +342,42 @@ export default async function ChapterPage({
               </article>
 
               {/* Chapter Navigation (Bottom) */}
-              <div className="flex items-center justify-between pt-8 border-t">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 pt-8 border-t">
                 {prev ? (
                   <Link
                     href={`/book/${prev.id}`}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-accent transition-colors group"
+                    className="flex items-center justify-center sm:justify-start gap-2 px-4 py-3 sm:py-2 rounded-lg hover:bg-accent transition-colors group border sm:border-transparent flex-1"
                   >
                     <ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
                     <div className="text-left">
                       <div className="text-xs text-muted-foreground">Previous</div>
-                      <div className="font-medium">{prev.title.replace(/^Chapter \d+: /, "")}</div>
+                      <div className="font-medium line-clamp-2">{prev.title.replace(/^Chapter \d+: /, "")}</div>
                     </div>
                   </Link>
                 ) : (
-                  <div />
+                  <div className="flex-1" />
                 )}
 
                 {next ? (
                   <Link
                     href={`/book/${next.id}`}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-accent transition-colors group text-right"
+                    className="flex items-center justify-center sm:justify-end gap-2 px-4 py-3 sm:py-2 rounded-lg hover:bg-accent transition-colors group text-right border sm:border-transparent flex-1"
                   >
-                    <div>
+                    <div className="text-right">
                       <div className="text-xs text-muted-foreground">Next</div>
-                      <div className="font-medium">{next.title.replace(/^Chapter \d+: /, "")}</div>
+                      <div className="font-medium line-clamp-2">{next.title.replace(/^Chapter \d+: /, "")}</div>
                     </div>
                     <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                   </Link>
                 ) : (
-                  <div />
+                  <div className="flex-1" />
                 )}
               </div>
             </div>
           </main>
 
           {/* Table of Contents (Right side) - visible on xl screens */}
-          <aside className="hidden xl:block w-64 flex-shrink-0">
+          <aside className="hidden 2xl:block w-64 flex-shrink-0">
             <div className="sticky top-24">
               <div className="border rounded-xl bg-card/50 backdrop-blur-sm p-4">
                 <h4 className="text-sm font-semibold mb-3 text-muted-foreground">
@@ -387,11 +388,10 @@ export default async function ChapterPage({
                     <Link
                       key={chapter.id}
                       href={`/book/${chapter.id}`}
-                      className={`block py-1 rounded transition-colors ${
-                        chapter.id === slug
+                      className={`block py-1 rounded transition-colors ${chapter.id === slug
                           ? "text-primary font-medium"
                           : "text-muted-foreground hover:text-foreground"
-                      }`}
+                        }`}
                     >
                       {chapter.order > 0 && `${chapter.order}. `}{chapter.title.replace(/^Chapter \d+: /, "")}
                     </Link>

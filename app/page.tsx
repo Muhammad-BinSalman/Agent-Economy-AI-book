@@ -23,7 +23,7 @@ export default function HomePage() {
   const coverImageUrl = "https://images.unsplash.com/photo-1551269901-5c5e14c25df7?auto=format&fit=crop&q=80&w=800";
   return (
     <>
-      <main className="min-h-screen">
+      <main className="">
         <HeroSection
           heading="Building the AI Agent Economy"
           tagline="A practical, AI-native e-book on Agentic AI, custom agents, CLI agents, and Digital AI Full-Time Equivalents (FTEs)."
