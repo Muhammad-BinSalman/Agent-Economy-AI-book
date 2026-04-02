@@ -1,0 +1,751 @@
+---
+title: "Chapter 7: Tool Contract Design and Verification"
+description: "Building safe, verifiable tool interfaces for AI agents"
+order: 7
+readTime: 14
+---
+
+# Chapter 7: Tool Contract Design and Verification
+
+Tools are the bridge between AI agents and the external world. Poorly designed tool contracts lead to security vulnerabilities, unpredictable behavior, and costly failures. This chapter covers how to design tools with clear contracts, implement verification loops, and build defense-in-depth security for tool-using agents.
+
+## Topic 7.1: Tool Contracts
+
+A tool contract defines the interface, constraints, and guarantees for a tool. It specifies what inputs are valid, what outputs to expect, and what side effects may occur.
+
+### Contract Components
+
+```python
+@dataclass
+class ToolContract:
+    """Complete contract for a tool"""
+    name: str
+    description: str
+
+    # Input contract
+    input_schema: Dict[str, Any]  # JSON Schema for arguments
+    preconditions: List[Callable[[Dict], bool]]  # Must be true before execution
+
+    # Output contract
+    output_schema: Dict[str, Any]  # JSON Schema for results
+    postconditions: List[Callable[[Dict], bool]]  # Must be true after execution
+
+    # Execution constraints
+    max_execution_time: float  # Seconds
+    max_retries: int
+    timeout_handling: str  # "fail" or "retry"
+
+    # Security constraints
+    required_permissions: List[str]
+    allowed_scopes: List[str]  # ["local", "project", "user"]
+    rate_limit: Optional[int]  # Max calls per minute
+
+    # Side effects
+    modifies_state: bool
+    external_calls: bool
+    audit_log: bool
+```
+
+### Example: Database Query Tool Contract
+
+```python
+class DatabaseQueryTool:
+    """Safe database query tool with strong contracts"""
+
+    def __init__(self, db_connection):
+        self.db = db_connection
+        self.contract = ToolContract(
+            name="query_database",
+            description="Execute read-only SQL queries on the database",
+
+            # Input contract
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "pattern": r"^(SELECT|WITH)\s",  # Must start with SELECT or WITH
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 1000,
+                        "default": 100
+                    }
+                },
+                "required": ["query"]
+            },
+
+            # Preconditions
+            preconditions=[
+                lambda args: self._is_read_only(args["query"]),
+                lambda args: not self._contains_dangerous_keywords(args["query"]),
+                lambda args: self._query_under_limit(args["query"]),
+            ],
+
+            # Output contract
+            output_schema={
+                "type": "object",
+                "properties": {
+                    "rows": {"type": "array"},
+                    "row_count": {"type": "integer"},
+                    "execution_time_ms": {"type": "number"}
+                }
+            },
+
+            # Postconditions
+            postconditions=[
+                lambda result: result["row_count"] <= 1000,
+                lambda result: isinstance(result["rows"], list),
+            ],
+
+            # Constraints
+            max_execution_time=5.0,
+            max_retries=1,
+            required_permissions=["database:read"],
+            rate_limit=60,  # 60 queries per minute
+
+            # Side effects
+            modifies_state=False,
+            external_calls=True,
+            audit_log=True
+        )
+
+    def _is_read_only(self, query: str) -> bool:
+        """Ensure query is read-only"""
+        forbidden = ["INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "CREATE"]
+        query_upper = query.upper()
+        return not any(keyword in query_upper for keyword in forbidden)
+
+    def _contains_dangerous_keywords(self, query: str) -> bool:
+        """Check for SQL injection patterns"""
+        dangerous = ["--", ";--", "/*", "*/", "xp_", "sp_"]
+        return not any(pattern in query.upper() for pattern in dangerous)
+
+    def _query_under_limit(self, query: str) -> bool:
+        """Ensure query has LIMIT clause"""
+        return "LIMIT" in query.upper()
+
+    def execute(self, query: str, limit: int = 100) -> Dict[str, Any]:
+        """Execute the query with contract enforcement"""
+        # Validate inputs against schema
+        self._validate_inputs(query, limit)
+
+        # Check preconditions
+        for precondition in self.contract.preconditions:
+            if not precondition({"query": query, "limit": limit}):
+                raise PermissionError("Precondition failed")
+
+        # Execute with timeout
+        start_time = time.time()
+        try:
+            with timeout(self.contract.max_execution_time):
+                results = self.db.execute(query + f" LIMIT {limit}")
+        except TimeoutError:
+            raise ToolExecutionError("Query exceeded time limit")
+
+        # Format output
+        output = {
+            "rows": results.fetchall(),
+            "row_count": results.rowcount,
+            "execution_time_ms": (time.time() - start_time) * 1000
+        }
+
+        # Check postconditions
+        for postcondition in self.contract.postconditions:
+            if not postcondition(output):
+                raise ToolOutputError("Postcondition failed")
+
+        return output
+```
+
+## Topic 7.2: Typed Arguments and Schema Validation
+
+Strong typing prevents many security vulnerabilities and makes tool behavior predictable.
+
+### Schema Validation with JSON Schema
+
+```python
+class SchemaValidator:
+    """Validate tool arguments against JSON Schema"""
+
+    def __init__(self):
+        self.validator = jsonschema.Draft7Validator
+
+    def validate_arguments(self, tool: ToolContract, args: Dict) -> ValidationResult:
+        """Validate arguments against tool schema"""
+        try:
+            self.validator(tool.input_schema).validate(args)
+            return ValidationResult(valid=True)
+        except jsonschema.ValidationError as e:
+            return ValidationResult(
+                valid=False,
+                error=f"Invalid argument: {e.message}",
+                path=e.path
+            )
+
+    def validate_output(self, tool: ToolContract, output: Dict) -> ValidationResult:
+        """Validate output against tool schema"""
+        try:
+            self.validator(tool.output_schema).validate(output)
+            return ValidationResult(valid=True)
+        except jsonschema.ValidationError as e:
+            return ValidationResult(
+                valid=False,
+                error=f"Invalid output: {e.message}",
+                path=e.path
+            )
+```
+
+### Type Safety in Python
+
+```python
+from typing import TypedDict, Literal
+from pydantic import BaseModel, Field, validator
+
+class SearchDatabaseInput(BaseModel):
+    """Typed input for database search"""
+    query: str = Field(..., min_length=1, max_length=1000)
+    table: Literal["users", "products", "orders"]
+    limit: int = Field(default=10, ge=1, le=100)
+
+    @validator("query")
+    def validate_query(cls, v):
+        """Ensure query is safe"""
+        if ";" in v or "--" in v:
+            raise ValueError("Query contains unsafe characters")
+        return v
+
+class SearchDatabaseOutput(BaseModel):
+    """Typed output for database search"""
+    results: List[Dict[str, Any]]
+    count: int = Field(..., ge=0)
+    execution_time_ms: float = Field(..., ge=0)
+
+    @validator("execution_time_ms")
+    def validate_execution_time(cls, v):
+        """Warn if query was slow"""
+        if v > 5000:
+            logging.warning(f"Slow query: {v}ms")
+        return v
+```
+
+## Topic 7.3: Allowlists and Permission Boundaries
+
+Allowlists are more secure than blocklists. Explicitly define what tools can do, not what they cannot do.
+
+### Permission System
+
+```python
+class PermissionManager:
+    """Manage tool permissions and scopes"""
+
+    def __init__(self):
+        self.permissions = {
+            "database:read": {
+                "description": "Read from database",
+                "max_rows": 1000,
+                "allowed_tables": ["users", "products", "orders"]
+            },
+            "database:write": {
+                "description": "Write to database",
+                "allowed_tables": ["audit_logs"]
+            },
+            "filesystem:read": {
+                "description": "Read files",
+                "allowed_paths": ["/data/documents", "/tmp/agent_work"]
+            },
+            "filesystem:write": {
+                "description": "Write files",
+                "allowed_paths": ["/tmp/agent_work"]
+            },
+            "api:external": {
+                "description": "Call external APIs",
+                "allowed_domains": ["api.example.com"],
+                "rate_limit": 100
+            }
+        }
+
+    def check_permission(self, tool: str, permission: str, context: Dict) -> bool:
+        """Check if tool has permission for operation"""
+        if permission not in self.permissions:
+            return False
+
+        perm_config = self.permissions[permission]
+
+        # Check scope
+        if context.get("scope") == "local":
+            # Local scope has fewer permissions
+            if permission in ["database:write", "filesystem:write"]:
+                return False
+
+        return True
+
+    def filter_tool_results(self, tool: str, permission: str, results: Any) -> Any:
+        """Filter results based on permission constraints"""
+        if permission == "database:read":
+            max_rows = self.permissions[permission]["max_rows"]
+            if isinstance(results, dict) and "rows" in results:
+                results["rows"] = results["rows"][:max_rows]
+                results["count"] = min(results["count"], max_rows)
+
+        return results
+```
+
+### Scope-Based Access Control
+
+```python
+@dataclass
+class ExecutionContext:
+    """Execution context with scope"""
+    user_id: str
+    project_id: Optional[str]
+    scope: Literal["local", "project", "user"]
+
+class ScopePermissionChecker:
+    """Check permissions based on execution scope"""
+
+    def __init__(self):
+        self.scope_permissions = {
+            "local": [
+                "filesystem:read:/tmp/agent_work",
+                "memory:read",
+                "memory:write"
+            ],
+            "project": [
+                "filesystem:read:/data/projects/{project_id}",
+                "filesystem:write:/tmp/agent_work",
+                "database:read",
+                "api:project:{project_id}"
+            ],
+            "user": [
+                "filesystem:read:/data/users/{user_id}",
+                "database:read",
+                "database:write:audit_logs",
+                "api:external"
+            ]
+        }
+
+    def check(self, context: ExecutionContext, required_permission: str) -> bool:
+        """Check if context has required permission"""
+        allowed = self.scope_permissions.get(context.scope, [])
+
+        # Replace placeholders
+        allowed_resolved = [
+            p.replace("{project_id}", context.project_id or "")
+             .replace("{user_id}", context.user_id)
+            for p in allowed
+        ]
+
+        # Check if permission matches any allowed pattern
+        for allowed_perm in allowed_resolved:
+            if self._permission_matches(allowed_perm, required_permission):
+                return True
+
+        return False
+
+    def _permission_matches(self, pattern: str, permission: str) -> bool:
+        """Check if permission matches pattern"""
+        # Exact match
+        if pattern == permission:
+            return True
+
+        # Prefix match (e.g., "database:read:*" matches "database:read:users")
+        if pattern.endswith(":*"):
+            prefix = pattern[:-2]
+            return permission.startswith(prefix)
+
+        return False
+```
+
+## Topic 7.4: Sandboxing Strategies
+
+Sandboxing limits the blast radius if a tool is compromised or misused.
+
+### Container Sandboxing
+
+```python
+class ContainerSandbox:
+    """Execute tools in isolated containers"""
+
+    def __init__(self, image: str = "python:3.11-slim"):
+        self.image = image
+        self.containers = {}
+
+    def execute_in_sandbox(self, tool: Tool, args: Dict) -> Any:
+        """Execute tool in isolated container"""
+        container_id = str(uuid.uuid4())
+
+        try:
+            # Create container with resource limits
+            container = docker_client.containers.run(
+                self.image,
+                command=f"python -c '{tool.sandboxed_code}'",
+                volumes={
+                    "/tmp/agent_work": {
+                        "bind": "/workspace",
+                        "mode": "rw"
+                    }
+                },
+                mem_limit="512m",  # Memory limit
+                cpu_quota=50000,  # CPU limit
+                network_disabled=True,  # No network access
+                read_only=True,  # Read-only filesystem
+                detach=True
+            )
+
+            self.containers[container_id] = container
+
+            # Wait for completion with timeout
+            result = container.wait(timeout=tool.timeout)
+
+            # Get logs
+            stdout = container.logs(stdout=True).decode('utf-8')
+            stderr = container.logs(stderr=True).decode('utf-8')
+
+            if result["StatusCode"] != 0:
+                raise ToolExecutionError(f"Sandbox error: {stderr}")
+
+            return json.loads(stdout)
+
+        finally:
+            # Clean up container
+            if container_id in self.containers:
+                self.containers[container_id].remove(force=True)
+                del self.containers[container_id]
+```
+
+### Process Sandboxing
+
+```python
+import subprocess
+import resource
+
+class ProcessSandbox:
+    """Execute tools in sandboxed processes"""
+
+    def execute_sandboxed(self, code: str, input_data: Dict) -> Any:
+        """Execute code in sandboxed process"""
+        # Set resource limits
+        def set_limits():
+            # Limit CPU time (5 seconds)
+            resource.setrlimit(resource.RLIMIT_CPU, (5, 5))
+
+            # Limit memory (512 MB)
+            resource.setrlimit(resource.RLIMIT_AS, (512 * 1024 * 1024, 512 * 1024 * 1024))
+
+            # Limit number of processes
+            resource.setrlimit(resource.RLIMIT_NPROC, (10, 10))
+
+        # Run in subprocess with limits
+        process = subprocess.Popen(
+            ["python", "-c", code],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            preexec_fn=set_limits
+        )
+
+        # Send input
+        stdin_data = json.dumps(input_data).encode()
+        stdout, stderr = process.communicate(input=stdin_data, timeout=10)
+
+        if process.returncode != 0:
+            raise ToolExecutionError(f"Process error: {stderr.decode()}")
+
+        return json.loads(stdout.decode())
+```
+
+## Topic 7.5: Verification Loops
+
+Verification loops ensure tool outputs are correct and safe before use.
+
+### Output Validation
+
+```python
+class OutputValidator:
+    """Validate tool outputs before use"""
+
+    def __init__(self, tool: ToolContract):
+        self.tool = tool
+        self.schema_validator = SchemaValidator()
+
+    def validate(self, output: Dict, context: Dict) -> ValidationResult:
+        """Comprehensive output validation"""
+        # 1. Schema validation
+        schema_result = self.schema_validator.validate_output(self.tool, output)
+        if not schema_result.valid:
+            return schema_result
+
+        # 2. Postcondition checks
+        for postcondition in self.tool.postconditions:
+            if not postcondition(output):
+                return ValidationResult(
+                    valid=False,
+                    error=f"Postcondition failed: {postcondition.__name__}"
+                )
+
+        # 3. Safety checks
+        safety_result = self._safety_checks(output, context)
+        if not safety_result.valid:
+            return safety_result
+
+        # 4. Quality checks
+        quality_result = self._quality_checks(output)
+        if not quality_result.valid:
+            return quality_result
+
+        return ValidationResult(valid=True)
+
+    def _safety_checks(self, output: Dict, context: Dict) -> ValidationResult:
+        """Check for safety issues"""
+        # Check for sensitive data leakage
+        if self._contains_sensitive_data(output):
+            return ValidationResult(valid=False, error="Sensitive data in output")
+
+        # Check for malicious content
+        if self._contains_malicious_content(output):
+            return ValidationResult(valid=False, error="Malicious content detected")
+
+        return ValidationResult(valid=True)
+
+    def _quality_checks(self, output: Dict) -> ValidationResult:
+        """Check output quality"""
+        # Check for empty results when not expected
+        if self.tool.expected_non_empty and self._is_empty(output):
+            return ValidationResult(valid=False, error="Unexpected empty result")
+
+        # Check for reasonable result size
+        if self._is_too_large(output):
+            return ValidationResult(valid=False, error="Result too large")
+
+        return ValidationResult(valid=True)
+```
+
+### Self-Correction Loop
+
+```python
+class SelfCorrectingExecutor:
+    """Execute tools with automatic error correction"""
+
+    def __init__(self, max_retries: int = 3):
+        self.max_retries = max_retries
+        self.validator = OutputValidator()
+
+    def execute_with_correction(self, tool: Tool, args: Dict) -> Dict:
+        """Execute tool and correct errors automatically"""
+        attempt = 0
+
+        while attempt < self.max_retries:
+            attempt += 1
+
+            try:
+                # Execute tool
+                result = tool.execute(**args)
+
+                # Validate result
+                validation = self.validator.validate(result, args)
+
+                if validation.valid:
+                    return result
+
+                # Attempt correction
+                if attempt < self.max_retries:
+                    args = self.correct_args(args, validation.error)
+                else:
+                    raise ToolOutputError(f"Validation failed: {validation.error}")
+
+            except ToolExecutionError as e:
+                if attempt < self.max_retries:
+                    args = self.correct_execution_args(args, str(e))
+                else:
+                    raise
+
+        raise ToolExecutionError("Max retries exceeded")
+
+    def correct_args(self, args: Dict, error: str) -> Dict:
+        """Correct arguments based on error"""
+        corrections = {
+            "limit too high": lambda a: {**a, "limit": a.get("limit", 100) // 2},
+            "query too complex": lambda a: {**a, "query": self.simplify_query(a["query"])},
+            "missing field": lambda a: self.add_missing_field(a, error),
+        }
+
+        for pattern, correction in corrections.items():
+            if pattern in error.lower():
+                return correction(args)
+
+        return args
+```
+
+## Topic 7.6: Prompt Injection in Tool-Using Agents
+
+Tool-using agents are vulnerable to prompt injection through tool outputs. Defense requires multiple layers.
+
+### Injection Detection
+
+```python
+class PromptInjectionDetector:
+    """Detect prompt injection in tool outputs"""
+
+    def __init__(self):
+        self.injection_patterns = [
+            r"ignore (previous|all) instructions",
+            r"override (your|system) instructions",
+            r"admin (mode|access|privileges)",
+            r"execute (arbitrary|any) code",
+            r"system.*prompt",
+            r"(sudo|root|administrator)",
+        ]
+
+    def check(self, text: str) -> bool:
+        """Check if text contains injection attempt"""
+        text_lower = text.lower()
+
+        for pattern in self.injection_patterns:
+            if re.search(pattern, text_lower):
+                return True
+
+        # Check for instruction overrides
+        if self._contains_instruction_override(text):
+            return True
+
+        # Check for role confusion attempts
+        if self._contains_role_confusion(text):
+            return True
+
+        return False
+
+    def _contains_instruction_override(self, text: str) -> bool:
+        """Check for attempts to override instructions"""
+        override_phrases = [
+            "instead of",
+            "forget everything",
+            "disregard",
+            "new instructions",
+        ]
+        return any(phrase in text.lower() for phrase in override_phrases)
+
+    def _contains_role_confusion(self, text: str) -> bool:
+        """Check for attempts to confuse agent's role"""
+        role_phrases = [
+            "you are now",
+            "pretend to be",
+            "act as",
+            "your real task is",
+        ]
+        return any(phrase in text.lower() for phrase in role_phrases)
+```
+
+### Sanitization
+
+```python
+class ToolOutputSanitizer:
+    """Sanitize tool outputs to prevent injection"""
+
+    def __init__(self):
+        self.detector = PromptInjectionDetector()
+
+    def sanitize(self, output: str, context: Dict) -> str:
+        """Sanitize tool output"""
+        # 1. Check for injection
+        if self.detector.check(output):
+            logging.warning(f"Prompt injection detected in tool output: {output[:100]}")
+            # Return safe default
+            return self._safe_default(context)
+
+        # 2. Remove potentially dangerous content
+        sanitized = self._remove_dangerous_content(output)
+
+        # 3. Escape special characters
+        sanitized = self._escape_special_chars(sanitized)
+
+        # 4. Truncate if too long
+        sanitized = self._truncate(sanitized, max_length=10000)
+
+        return sanitized
+
+    def _remove_dangerous_content(self, text: str) -> str:
+        """Remove potentially dangerous content"""
+        # Remove code blocks if not expected
+        if not self._expecting_code(text):
+            text = re.sub(r"```[\s\S]*?```", "", text)
+
+        # Remove URLs if not expected
+        if not self._expecting_urls(text):
+            text = re.sub(r"https?://\S+", "", text)
+
+        return text
+
+    def _escape_special_chars(self, text: str) -> str:
+        """Escape special characters"""
+        # Escape Markdown characters
+        for char in ["*", "_", "[", "]", "(", ")"]:
+            text = text.replace(char, f"\\{char}")
+
+        return text
+```
+
+## Topic 7.7: Tool Contract Design Checklist
+
+Use this checklist when designing tool contracts:
+
+### Input Contract
+
+- [ ] JSON Schema defined for all arguments
+- [ ] Type constraints specified (string, integer, etc.)
+- [ ] Value constraints specified (min, max, patterns)
+- [ ] Required arguments marked
+- [ ] Default values provided
+- [ ] Preconditions documented and implemented
+- [ ] Input validation implemented
+- [ ] Dangerous input patterns rejected
+
+### Output Contract
+
+- [ ] JSON Schema defined for outputs
+- [ ] Output types specified
+- [ ] Postconditions documented and implemented
+- [ ] Output validation implemented
+- [ ] Error cases documented
+- [ ] Default error responses defined
+
+### Security Constraints
+
+- [ ] Required permissions specified
+- [ ] Allowed scopes defined (local/project/user)
+- [ ] Rate limits configured
+- [ ] Audit logging enabled
+- [ ] Sandboxing requirements specified
+- [ ] Prompt injection detection implemented
+- [ ] Output sanitization implemented
+
+### Execution Constraints
+
+- [ ] Maximum execution time set
+- [ ] Maximum retries configured
+- [ ] Timeout handling strategy defined
+- [ ] Resource limits specified (memory, CPU)
+- [ ] Network access controls configured
+
+### Monitoring and Observability
+
+- [ ] Execution logging implemented
+- [ ] Success/failure metrics tracked
+- [ ] Latency monitoring configured
+- [ ] Cost tracking implemented
+- [ ] Error categorization implemented
+
+### Documentation
+
+- [ ] Tool purpose documented
+- [ ] Usage examples provided
+- [ ] Security considerations documented
+- [ ] Known limitations documented
+- [ ] Troubleshooting guide provided
+
+## Conclusion
+
+Tool contracts are the foundation of safe agentic AI. By defining clear interfaces, implementing strong validation, using sandboxing, and detecting prompt injection, you can build agents that are both powerful and secure. Remember that security requires defense-in-depth—never rely on a single protection mechanism.
+
+In the next chapter, we'll explore multi-agent systems and how to coordinate multiple agents effectively.

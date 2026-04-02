@@ -1,0 +1,1058 @@
+---
+title: "Chapter 13: Claude Code and CLI Agents"
+description: "Practical patterns for AI-assisted development with Claude"
+order: 13
+readTime: 16
+---
+
+# Chapter 13: Claude Code and CLI Agents
+
+Claude Code and the Claude CLI provide powerful capabilities for AI-assisted development. This chapter covers practical patterns for using Claude Code effectively, including writing good CLAUDE.md files, using subagents, implementing hooks, working with MCP (Model Context Protocol), and creating workflow-as-prompt patterns.
+
+## Topic 13.1: The Explore → Plan → Implement → Verify Workflow
+
+Claude Code works best when following a structured workflow that moves from understanding to planning to implementation to verification.
+
+### Phase 1: Explore
+
+**Goal**: Understand the codebase and problem space
+
+**Activities**:
+- Read relevant files to understand architecture
+- Search for related code patterns
+- Identify dependencies and constraints
+- Understand existing conventions
+
+**Claude Code Patterns**:
+```
+# Explore the codebase structure
+Find files related to authentication
+
+# Search for patterns
+Grep for "authenticate" in Python files
+
+# Read specific files
+Read app/auth/service.py
+Read app/auth/models.py
+```
+
+### Phase 2: Plan
+
+**Goal**: Create a detailed implementation plan
+
+**Activities**:
+- Design the solution architecture
+- Identify files to create/modify
+- Plan the implementation order
+- Consider edge cases and error handling
+
+**Claude Code Patterns**:
+```
+# Create a plan
+Plan: Add OAuth2 authentication to the API
+
+# Key decisions:
+- Use authlib for OAuth2 implementation
+- Store tokens in PostgreSQL database
+- Add middleware for request validation
+- Implement token refresh logic
+
+# Files to create:
+- app/auth/oauth.py (OAuth2 endpoints)
+- app/auth/middleware.py (Auth middleware)
+- app/auth/models.py (Token models)
+
+# Files to modify:
+- main.py (register OAuth routes)
+- app/core/config.py (add OAuth config)
+```
+
+### Phase 3: Implement
+
+**Goal**: Execute the plan systematically
+
+**Activities**:
+- Create new files following the plan
+- Modify existing files
+- Follow code style conventions
+- Add error handling
+
+**Claude Code Patterns**:
+```
+# Implement OAuth2 service
+Create app/auth/oauth.py with OAuth2Service class
+
+# Implement middleware
+Create app/auth/middleware.py with AuthMiddleware class
+
+# Update main.py to register routes
+Edit main.py to include OAuth router
+
+# Add configuration
+Edit app/core/config.py to add OAuth settings
+```
+
+### Phase 4: Verify
+
+**Goal**: Ensure the implementation works correctly
+
+**Activities**:
+- Run tests
+- Manual testing
+- Code review
+- Fix issues
+
+**Claude Code Patterns**:
+```
+# Run tests
+Bash: pytest tests/auth/test_oauth.py
+
+# Check for issues
+Bash: python -m pylint app/auth/
+
+# Manual testing
+Bash: uvicorn main:app --reload
+
+# Fix any issues found
+```
+
+## Topic 13.2: Writing Effective CLAUDE.md Files
+
+CLAUDE.md files provide context and instructions to Claude Code. Good CLAUDE.md files are specific, actionable, and maintainable.
+
+### CLAUDE.md Template
+
+```markdown
+# Project Instructions
+
+## Project Overview
+
+[One paragraph description of what this project does and its main purpose]
+
+## Architecture
+
+[High-level architecture description]
+
+**Technology Stack**:
+- Backend: [Framework]
+- Frontend: [Framework]
+- Database: [Database]
+- AI/ML: [Models/Tools]
+
+## Code Conventions
+
+### Python
+- Follow PEP 8
+- Use type hints for all functions
+- Maximum line length: 100 characters
+- Use f-strings for string formatting
+- Docstrings for all public functions/classes
+
+### TypeScript/React
+- Use functional components with hooks
+- TypeScript strict mode enabled
+- Use Tailwind CSS for styling
+- Component files: PascalCase
+- Utility files: camelCase
+
+## File Structure
+
+```
+app/
+├── api/              # API endpoints
+├── core/             # Core functionality
+├── models/           # Data models
+├── services/         # Business logic
+└── utils/            # Utilities
+tests/
+├── unit/             # Unit tests
+└── integration/      # Integration tests
+```
+
+## Development Workflow
+
+1. Always run tests before committing
+2. Use feature branches for development
+3. Update CLAUDE.md when architecture changes
+4. Document complex logic in code comments
+
+## Important Constraints
+
+- **Authentication**: All API endpoints require authentication except /health
+- **Database**: Use SQLAlchemy ORM, no raw SQL
+- **Logging**: Use structured logging with context
+- **Error Handling**: Never expose stack traces to clients
+
+## Common Tasks
+
+### Adding a New API Endpoint
+
+1. Create endpoint in `app/api/v1/`
+2. Add request/response models in `app/models/`
+3. Implement business logic in `app/services/`
+4. Add tests in `tests/api/`
+5. Update API documentation
+
+### Adding a New Database Model
+
+1. Define model in `app/models/`
+2. Create migration script
+3. Run migration: `alembic upgrade head`
+4. Add model tests
+
+## Testing
+
+- Unit tests: `pytest tests/unit/`
+- Integration tests: `pytest tests/integration/`
+- Coverage: `pytest --cov=app`
+- Minimum coverage: 80%
+
+## Troubleshooting
+
+### Database connection issues
+- Check DATABASE_URL in .env
+- Verify database is running
+- Check migration status: `alembic current`
+
+### Import errors
+- Ensure virtual environment is activated
+- Run: `pip install -r requirements.txt`
+- Check PYTHONPATH includes project root
+
+## Current Work
+
+**Most Recent Changes**:
+- [Description of recent work]
+
+**Known Issues**:
+- [List of known issues]
+
+**Next Steps**:
+- [What to work on next]
+```
+
+### Example: Production CLAUDE.md
+
+```markdown
+# AI Customer Support System - Project Instructions
+
+## Project Overview
+
+AI-powered customer support system that answers documentation questions using RAG (Retrieval Augmented Generation). Built with FastAPI backend, React frontend, PostgreSQL database, and vector embeddings for semantic search.
+
+## Architecture
+
+**Backend**: FastAPI with Python 3.11
+**Frontend**: Next.js 14 with React 18
+**Database**: PostgreSQL 15
+**Vector DB**: Pinecone
+**LLM**: Claude 3.5 Sonnet via Anthropic API
+**Embeddings**: OpenAI text-embedding-3-small
+
+**System Flow**:
+1. User submits question via frontend
+2. Backend validates request and checks rate limits
+3. System retrieves relevant documentation using vector search
+4. Agent generates answer using retrieved context
+5. If confidence < 0.7, escalate to human support
+6. Stream response to frontend via SSE
+
+## Code Conventions
+
+### Python (Backend)
+- Type hints required for all function signatures
+- Use Pydantic models for request/response validation
+- Async/await for all I/O operations
+- Error handling with custom exception classes
+- Structured logging with `structlog`
+
+### TypeScript (Frontend)
+- Use Server Components where possible
+- Client Components for interactivity
+- Tailwind CSS for styling
+- API routes in `app/api/`
+- Components in `components/`
+
+## Security Constraints
+
+**Critical**: Never bypass these security measures
+
+1. **Input Validation**: All user inputs must be validated with Pydantic models
+2. **Rate Limiting**: 100 requests per minute per user
+3. **Prompt Injection**: Sanitize all inputs before sending to LLM
+4. **PII Redaction**: Redact personal information from all responses
+5. **SQL Injection**: Use SQLAlchemy ORM only, never raw SQL
+6. **Auth**: All endpoints except /health and /api/v1/questions require authentication
+
+## File Structure
+
+```
+app/
+├── api/v1/           # API endpoints (questions, health)
+├── core/             # Config, middleware, errors
+├── models/           # Pydantic models, database models
+├── services/         # Business logic (retrieval, agent, escalation)
+├── utils/            # Utilities (embeddings, sanitization)
+tests/
+├── unit/             # Unit tests
+├── integration/      # Integration tests
+└── evaluation/       # Evaluation harness
+```
+
+## Important Files
+
+- `app/core/config.py`: All configuration with environment variables
+- `app/core/middleware.py`: Auth, rate limiting, logging
+- `app/services/retrieval_service.py`: Vector search implementation
+- `app/services/agent_service.py`: Answer generation with Claude
+- `app/services/escalation_service.py`: Human escalation logic
+
+## Development Workflow
+
+1. Create feature branch from `main`
+2. Implement changes following explore → plan → implement → verify
+3. Run tests: `pytest tests/`
+4. Run linting: `ruff check app/`
+5. Update CLAUDE.md if architecture changes
+6. Create PR with tests passing
+
+## Testing
+
+**Unit Tests**: `pytest tests/unit/ -v`
+**Integration Tests**: `pytest tests/integration/ -v`
+**Evaluation Tests**: `pytest tests/evaluation/ -v`
+**Coverage**: `pytest --cov=app --cov-report=html`
+**Target Coverage**: 85%
+
+## Monitoring & Observability
+
+**Metrics**: Prometheus on http://localhost:9090
+**Traces**: Jaeger UI on http://localhost:16686
+**Logs**: Check logs/app.log
+
+## Current Work
+
+**Recent Changes**:
+- Added prompt injection detection (2025-01-15)
+- Implemented streaming responses (2025-01-14)
+- Added evaluation harness (2025-01-13)
+
+**Known Issues**:
+- High latency on first request (cold start)
+- Occasional timeout from vector database
+
+**Next Steps**:
+- Add caching for frequently asked questions
+- Implement multi-language support
+- Add admin dashboard for metrics
+```
+
+## Topic 13.3: Using Subagents
+
+Subagents allow you to delegate specialized tasks with constrained tools and permissions.
+
+### Subagent Types
+
+```python
+# CLAUDE.md example with subagent configuration
+
+## Subagents
+
+### Researcher Agent
+
+**Purpose**: Explore codebase and gather information
+
+**Tools**:
+- Read (file reading)
+- Glob (file pattern matching)
+- Grep (content search)
+
+**Permissions**:
+- Read-only access to all files
+- No write permissions
+- No execution permissions
+
+**Usage Example**:
+```
+Use the researcher subagent to:
+- Find all files related to authentication
+- Search for error handling patterns
+- Understand the database schema
+- Identify dependencies between modules
+```
+
+### Implementer Agent
+
+**Purpose**: Write and modify code
+
+**Tools**:
+- Read
+- Write
+- Edit
+- Bash (for running tests)
+
+**Permissions**:
+- Read and write to source files
+- Cannot modify config files
+- Cannot modify CLAUDE.md
+- Must run tests after changes
+
+**Constraints**:
+- Maximum file edits: 5 per task
+- Must validate with tests before completing
+- Cannot delete files without confirmation
+
+### Reviewer Agent
+
+**Purpose**: Review code for issues
+
+**Tools**:
+- Read
+- Bash (linting tools)
+
+**Permissions**:
+- Read-only access
+- Can run linting and testing tools
+
+**Review Criteria**:
+- Code style compliance
+- Type hint coverage
+- Error handling completeness
+- Security issues
+- Performance concerns
+```
+
+### Using Subagents in Practice
+
+```markdown
+# Example: Adding a new feature
+
+## Task: Add OAuth2 authentication
+
+### Step 1: Research (use Researcher subagent)
+
+Researcher: Find existing authentication code
+- Search for "authenticate" in the codebase
+- Read current authentication implementation
+- Identify what needs to change
+
+### Step 2: Plan
+
+Based on research, create implementation plan:
+1. Create OAuth2 service in app/auth/oauth.py
+2. Add OAuth2 models to app/auth/models.py
+3. Create migration for token storage
+4. Add OAuth2 routes to app/api/v1/auth.py
+5. Update middleware to support OAuth2 tokens
+
+### Step 3: Implement (use Implementer subagent)
+
+Implementer: Create OAuth2 service
+- Write app/auth/oauth.py with OAuth2Service class
+- Implement token generation and validation
+- Add error handling for OAuth2 flows
+
+Implementer: Create OAuth2 models
+- Write app/auth/models.py with Token model
+- Add database fields for token storage
+
+Implementer: Create migration
+- Generate Alembic migration
+- Review migration file
+
+### Step 4: Verify (use Reviewer subagent)
+
+Reviewer: Review OAuth2 implementation
+- Check code style compliance
+- Verify type hints are present
+- Check error handling
+- Run tests: pytest tests/auth/test_oauth.py
+- Run linting: ruff check app/auth/
+
+### Step 5: Test and Fix
+
+Bash: Run tests
+Bash: Fix any issues found
+Bash: Re-run tests until passing
+```
+
+## Topic 13.4: Hooks for Automated Checks
+
+Hooks allow you to run automated checks at specific points in the development workflow.
+
+### Pre-Commit Hooks
+
+```python
+# .git/hooks/pre-commit
+
+#!/usr/bin/env python3
+"""Pre-commit hook for automated checks"""
+
+import subprocess
+import sys
+
+def run_check(name: str, command: list[str]) -> bool:
+    """Run a check and return success status"""
+    print(f"\n{'='*60}")
+    print(f"Running: {name}")
+    print(f"{'='*60}")
+
+    result = subprocess.run(command, capture_output=True, text=True)
+
+    if result.returncode != 0:
+        print(f"❌ {name} failed")
+        print(result.stdout)
+        print(result.stderr)
+        return False
+
+    print(f"✅ {name} passed")
+    return True
+
+def main():
+    """Run all pre-commit checks"""
+    checks = [
+        ("Type checking", ["mypy", "app/"]),
+        ("Linting", ["ruff", "check", "app/"]),
+        ("Formatting", ["ruff", "format", "--check", "app/"]),
+        ("Tests", ["pytest", "tests/unit/", "-q"]),
+    ]
+
+    failed = []
+    for name, command in checks:
+        if not run_check(name, command):
+            failed.append(name)
+
+    if failed:
+        print(f"\n❌ Pre-commit hook failed: {', '.join(failed)}")
+        print("Fix the issues and try again.")
+        sys.exit(1)
+
+    print(f"\n✅ All checks passed!")
+    sys.exit(0)
+
+if __name__ == "__main__":
+    main()
+```
+
+### Pre-Push Hooks
+
+```python
+# .git/hooks/pre-push
+
+#!/usr/bin/env python3
+"""Pre-push hook for comprehensive checks"""
+
+import subprocess
+import sys
+
+def main():
+    """Run comprehensive checks before pushing"""
+    print("\n🚀 Running pre-push checks...")
+
+    checks = [
+        ("Full test suite", ["pytest", "tests/", "-v"]),
+        ("Coverage check", ["pytest", "--cov=app", "--cov-fail-under=80"]),
+        ("Security scan", ["bandit", "-r", "app/"]),
+    ]
+
+    failed = []
+    for name, command in checks:
+        result = subprocess.run(command, capture_output=True, text=True)
+        if result.returncode != 0:
+            print(f"❌ {name} failed")
+            failed.append(name)
+
+    if failed:
+        print(f"\n❌ Pre-push hook failed: {', '.join(failed)}")
+        sys.exit(1)
+
+    print(f"\n✅ All checks passed! Safe to push.")
+    sys.exit(0)
+
+if __name__ == "__main__":
+    main()
+```
+
+## Topic 13.5: MCP (Model Context Protocol)
+
+MCP allows Claude Code to connect to external tools and data sources through standardized protocols.
+
+### MCP Scopes
+
+```markdown
+## MCP Configuration
+
+### Local Scope
+**Purpose**: Tools available only on this machine
+
+**Configuration**: `.claude/mcp/local.json`
+```json
+{
+  "tools": [
+    {
+      "name": "local-filesystem",
+      "type": "filesystem",
+      "path": "/Users/developer/projects",
+      "permissions": ["read", "write"]
+    },
+    {
+      "name": "local-database",
+      "type": "database",
+      "connection": "postgresql://localhost/mydb",
+      "permissions": ["read"]
+    }
+  ]
+}
+```
+
+### Project Scope
+**Purpose**: Tools shared across project team
+
+**Configuration**: `.claude/mcp/project.json` (committed to git)
+```json
+{
+  "tools": [
+    {
+      "name": "project-documentation",
+      "type": "filesystem",
+      "path": "./docs",
+      "permissions": ["read"]
+    },
+    {
+      "name": "project-api",
+      "type": "http",
+      "base_url": "http://localhost:8000",
+      "endpoints": ["/api/v1/*"],
+      "authentication": "bearer-token"
+    }
+  ]
+}
+```
+
+### User Scope
+**Purpose**: Personal tools across all projects
+
+**Configuration**: `~/.claude/mcp/user.json`
+```json
+{
+  "tools": [
+    {
+      "name": "github",
+      "type": "git",
+      "platform": "github",
+      "authentication": "oauth-token"
+    },
+    {
+      "name": "jira",
+      "type": "http",
+      "base_url": "https://company.atlassian.net",
+      "authentication": "api-token"
+    }
+  ]
+}
+```
+```
+
+### Using MCP Tools
+
+```markdown
+## MCP Usage Examples
+
+### Reading Documentation from Project MCP
+
+```
+Use the project-documentation MCP tool to:
+- Read architecture docs
+- Find API specifications
+- Check coding standards
+```
+
+### Querying the API via MCP
+
+```
+Use the project-api MCP tool to:
+- Test API endpoints
+- Check API responses
+- Validate API contracts
+```
+
+### Accessing GitHub via MCP
+
+```
+Use the GitHub MCP tool to:
+- Create pull requests
+- Review code changes
+- Check issue status
+- Update project milestones
+```
+```
+
+## Topic 13.6: Workflow-as-Prompt Patterns
+
+Complex development workflows can be encoded as prompts that Claude Code can execute systematically.
+
+### Pattern 1: Feature Development Workflow
+
+```markdown
+# Feature Development Workflow
+
+You are implementing a new feature following the explore → plan → implement → verify workflow.
+
+## Task: {FEATURE_DESCRIPTION}
+
+### Phase 1: Explore (use Researcher subagent)
+
+1. Understand the current codebase structure
+2. Find related files and patterns
+3. Identify dependencies and constraints
+4. Research best practices for this feature
+
+**Questions to answer**:
+- What files need to be modified?
+- What new files need to be created?
+- Are there similar features to reference?
+- What are the potential challenges?
+
+### Phase 2: Plan
+
+Create a detailed implementation plan:
+
+1. **Architecture Changes**:
+   - New components/services needed
+   - Database schema changes
+   - API changes
+
+2. **Implementation Steps**:
+   - Step 1: {description}
+   - Step 2: {description}
+   - Step 3: {description}
+   ...
+
+3. **Testing Strategy**:
+   - Unit tests needed
+   - Integration tests needed
+   - Manual testing scenarios
+
+4. **Risk Mitigation**:
+   - Potential issues
+   - Mitigation strategies
+
+### Phase 3: Implement (use Implementer subagent)
+
+Execute the implementation plan step by step:
+
+For each step:
+1. Create/modify files as planned
+2. Follow code conventions from CLAUDE.md
+3. Add error handling
+4. Add logging
+
+After each step:
+- Run tests to verify
+- Fix any issues
+- Commit changes with descriptive message
+
+### Phase 4: Verify (use Reviewer subagent)
+
+1. **Code Review**:
+   - Check code style compliance
+   - Verify type hints are present
+   - Check error handling completeness
+   - Review security implications
+
+2. **Testing**:
+   - Run unit tests: `pytest tests/unit/`
+   - Run integration tests: `pytest tests/integration/`
+   - Verify coverage: `pytest --cov=app`
+
+3. **Manual Testing**:
+   - Start the application
+   - Test the feature manually
+   - Verify edge cases
+
+4. **Final Checks**:
+   - Update CLAUDE.md if needed
+   - Update API documentation
+   - Create pull request
+
+## Success Criteria
+
+- [ ] All tests passing
+- [ ] Coverage >= 85%
+- [ ] Code review passed
+- [ ] Documentation updated
+- [ ] Manual testing successful
+
+Begin with Phase 1: Explore.
+```
+
+### Pattern 2: Bug Fix Workflow
+
+```markdown
+# Bug Fix Workflow
+
+You are fixing a bug following systematic debugging and fixing process.
+
+## Bug Report: {BUG_TITLE}
+
+**Description**: {BUG_DESCRIPTION}
+**Steps to Reproduce**: {STEPS}
+**Expected Behavior**: {EXPECTED}
+**Actual Behavior**: {ACTUAL}
+**Environment**: {ENVIRONMENT_INFO}
+
+### Phase 1: Diagnose (use Researcher subagent)
+
+1. **Understand the Bug**:
+   - Read related code
+   - Understand expected behavior
+   - Identify where behavior diverges
+
+2. **Find Root Cause**:
+   - Add debug logging if needed
+   - Reproduce the bug
+   - Trace execution flow
+   - Identify the problematic code
+
+3. **Analyze Impact**:
+   - What components are affected?
+   - Are there similar bugs elsewhere?
+   - What's the blast radius?
+
+### Phase 2: Plan Fix
+
+1. **Fix Strategy**:
+   - What changes are needed?
+   - Minimal vs comprehensive fix
+   - Trade-offs considered
+
+2. **Testing Plan**:
+   - Test case for this bug
+   - Regression tests
+   - Edge cases to test
+
+3. **Risk Assessment**:
+   - Potential side effects
+   - Backwards compatibility
+   - Migration needed?
+
+### Phase 3: Implement Fix (use Implementer subagent)
+
+1. **Implement the Fix**:
+   - Make minimal changes to fix the bug
+   - Add explanatory comments
+   - Update related tests
+
+2. **Add Tests**:
+   - Add test case that reproduces bug
+   - Verify test fails before fix
+   - Verify test passes after fix
+
+3. **Check for Similar Issues**:
+   - Search for similar patterns
+   - Fix related bugs if found
+
+### Phase 4: Verify (use Reviewer subagent)
+
+1. **Verify Fix**:
+   - Run the new test
+   - Run all tests
+   - Manual verification
+
+2. **Regression Check**:
+   - Run full test suite
+   - Check for broken functionality
+   - Performance impact
+
+3. **Documentation**:
+   - Update CLAUDE.md if behavior changed
+   - Add comment explaining fix
+   - Update CHANGELOG
+
+## Success Criteria
+
+- [ ] Bug is fixed
+- [ ] Test case added and passing
+- [ ] All tests passing
+- [ ] No regressions
+- [ ] Documentation updated
+
+Begin with Phase 1: Diagnose.
+```
+
+### Pattern 3: CI/CD Agent Workflow
+
+```markdown
+# CI/CD Agent Workflow
+
+You are a CI/CD agent responsible for continuous integration and deployment.
+
+## Task: Deploy Application to Production
+
+### Phase 1: Pre-Deployment Checks
+
+1. **Run All Tests**:
+   ```bash
+   pytest tests/ --cov=app --cov-fail-under=85
+   ```
+
+2. **Run Security Scans**:
+   ```bash
+   bandit -r app/
+   safety check
+   ```
+
+3. **Run Linting**:
+   ```bash
+   ruff check app/
+   mypy app/
+   ```
+
+4. **Build Artifacts**:
+   ```bash
+   docker build -t myapp:latest .
+   ```
+
+5. **Verify Artifacts**:
+   ```bash
+   docker run myapp:latest pytest tests/
+   ```
+
+### Phase 2: Staging Deployment
+
+1. **Deploy to Staging**:
+   ```bash
+   kubectl apply -f k8s/staging/
+   ```
+
+2. **Health Checks**:
+   ```bash
+   kubectl get pods -n staging
+   curl https://staging.example.com/health
+   ```
+
+3. **Smoke Tests**:
+   ```bash
+   pytest tests/smoke/ --base-url=https://staging.example.com
+   ```
+
+4. **Monitor Metrics**:
+   - Check error rates
+   - Check latency
+   - Check resource usage
+
+### Phase 3: Production Deployment
+
+1. **Create Backup**:
+   ```bash
+   kubectl backup -n production
+   ```
+
+2. **Gradual Rollout**:
+   ```bash
+   # Update 10% of traffic
+   kubectl set image deployment/myapp myapp=myapp:v2 -n production
+   kubectl scale deployment/myapp --replicas=10 -n production
+
+   # Monitor for 5 minutes
+   # If metrics OK, continue rollout
+   ```
+
+3. **Monitor Rollout**:
+   - Check error rates
+   - Check latency
+   - Check user feedback
+   - Prepare to rollback if needed
+
+4. **Complete Rollout**:
+   ```bash
+   kubectl scale deployment/myapp --replicas=100 -n production
+   ```
+
+### Phase 4: Post-Deployment
+
+1. **Verify Deployment**:
+   - Check all pods healthy
+   - Run smoke tests
+   - Monitor metrics for 1 hour
+
+2. **Update Documentation**:
+   - Update deployment notes
+   - Tag release in git
+   - Update CHANGELOG
+
+3. **Notify Team**:
+   - Send deployment notification
+   - Share metrics dashboard
+   - Document any issues
+
+## Rollback Plan
+
+If any critical issues detected:
+```bash
+# Immediate rollback
+kubectl rollout undo deployment/myapp -n production
+
+# Verify rollback
+kubectl get pods -n production
+curl https://example.com/health
+```
+
+## Success Criteria
+
+- [ ] All tests passing
+- [ ] Staging deployment successful
+- [ ] Production rollout smooth
+- [ ] Error rates within threshold
+- [ ] Latency within SLA
+- [ ] No user complaints
+
+Begin with Phase 1: Pre-Deployment Checks.
+```
+
+## Topic 13.7: Claude Code Production Checklist
+
+### CLAUDE.md Quality
+
+- [ ] Project overview clear and concise
+- [ ] Architecture well documented
+- [ ] Code conventions specified
+- [ ] File structure explained
+- [ ] Security constraints explicit
+- [ ] Common tasks documented
+- [ ] Troubleshooting guide included
+- [ ] Current work section maintained
+
+### Subagent Configuration
+
+- [ ] Subagent roles defined
+- [ ] Tool permissions specified
+- [ ] Subagent constraints clear
+- [ ] Usage patterns documented
+
+### Hooks Configuration
+
+- [ ] Pre-commit hooks configured
+- [ ] Pre-push hooks configured
+- [ ] Automated checks defined
+- [ ] Hook scripts executable
+
+### MCP Configuration
+
+- [ ] Local MCP configured (if needed)
+- [ ] Project MCP configured
+- [ ] User MCP configured
+- [ ] MCP tools documented
+
+### Workflow Patterns
+
+- [ ] Feature development workflow defined
+- [ ] Bug fix workflow defined
+- [ ] CI/CD workflow defined
+- [ ] Code review workflow defined
+
+## Conclusion
+
+Claude Code and CLI provide powerful capabilities for AI-assisted development when used with proper structure and discipline. By following the Explore → Plan → Implement → Verify workflow, writing effective CLAUDE.md files, using subagents with bounded permissions, implementing hooks for automated checks, and leveraging MCP for tool integration, you can significantly accelerate your development workflow while maintaining code quality and safety.
+
+In the final chapter, we'll cover production readiness checklists and go/no-go criteria.

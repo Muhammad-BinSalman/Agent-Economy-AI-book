@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next"
 import "./globals.css";
 import { ThemeProvider } from "next-themes";
-import { Navigation } from "@/components/navigation";
+import { Navigation } from "@/components/layout/navigation";
 import { Chatbot } from "@/components/chatbot";
+import Footer from "@/components/layout/footer";
 
 const inter = Inter({ subsets: ["latin"], display: "swap" });
 
@@ -19,7 +21,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
+      <body className={inter.className} suppressHydrationWarning>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
@@ -29,7 +31,9 @@ export default function RootLayout({
           <Navigation />
           {children}
           <Chatbot />
+          <Footer />
         </ThemeProvider>
+        <Analytics />
       </body>
     </html>
   );
